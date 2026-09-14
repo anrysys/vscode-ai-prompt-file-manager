@@ -1,3 +1,9 @@
+# AI Prompt File Manager
+
+<p align="center">
+  <img src="icon.png" width="128" alt="AI Prompt File Manager Logo">
+</p>
+
 # Prompt Manager
 
 Keep your AI prompts as ordinary `.md` / `.txt` files, find them with a keystroke, and get
