@@ -4,8 +4,15 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anrysys/vscode-ai-prompt-file-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anrysys/vscode-ai-prompt-file-manager/issues"
+  },
   "engines": {
     "vscode": "^1.99.0"
   },
