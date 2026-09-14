@@ -1,0 +1,430 @@
+{
+  "name": "text-to-ai-chat",
+  "displayName": "AI Prompt File Manager",
+  "icon": "icon.png",
+  "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
+  "publisher": "anrysys",
+  "version": "0.1.1",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets"
+  ],
+  "keywords": [
+    "prompt",
+    "snippet",
+    "copilot",
+    "chat",
+    "ai",
+    "obsidian"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "promptManager",
+          "title": "Prompt Manager",
+          "icon": "resources/prompt-manager.svg"
+        }
+      ]
+    },
+    "views": {
+      "promptManager": [
+        {
+          "id": "promptManager.view",
+          "name": "Prompt Manager",
+          "icon": "resources/prompt-manager.svg",
+          "contextualTitle": "Prompt Manager"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "promptManager.view",
+        "contents": "No prompt snippets yet.\n\nSnippets are plain `.md` / `.txt` files on disk — the file system is the single source of truth.\n[New Snippet](command:promptManager.newSnippet)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "promptManager.insertSnippet",
+        "title": "Insert Snippet",
+        "category": "Prompt Manager",
+        "icon": "$(insert)"
+      },
+      {
+        "command": "promptManager.insertFromTree",
+        "title": "Insert This Snippet",
+        "category": "Prompt Manager",
+        "icon": "$(insert)"
+      },
+      {
+        "command": "promptManager.copyToClipboard",
+        "title": "Copy Snippet to Clipboard",
+        "category": "Prompt Manager",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "promptManager.openSnippet",
+        "title": "Edit Snippet",
+        "category": "Prompt Manager",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "promptManager.newSnippet",
+        "title": "New Snippet...",
+        "category": "Prompt Manager",
+        "icon": "$(add)"
+      },
+      {
+        "command": "promptManager.newSnippetHere",
+        "title": "New Snippet Here...",
+        "category": "Prompt Manager",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "promptManager.newFolder",
+        "title": "New Folder...",
+        "category": "Prompt Manager",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "promptManager.renameSnippet",
+        "title": "Rename...",
+        "category": "Prompt Manager"
+      },
+      {
+        "command": "promptManager.deleteSnippet",
+        "title": "Delete",
+        "category": "Prompt Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "promptManager.openInObsidian",
+        "title": "Open in Obsidian",
+        "category": "Prompt Manager",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "promptManager.revealInOS",
+        "title": "Reveal in File Explorer",
+        "category": "Prompt Manager"
+      },
+      {
+        "command": "promptManager.refresh",
+        "title": "Refresh",
+        "category": "Prompt Manager",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "promptManager.openGlobalFolder",
+        "title": "Open Global Prompts Folder",
+        "category": "Prompt Manager",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "promptManager.configureInsertStrategy",
+        "title": "Configure Insert Strategy...",
+        "category": "Prompt Manager",
+        "icon": "$(gear)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "promptManager.insertFromTree",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.openSnippet",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.newSnippetHere",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.newFolder",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.renameSnippet",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.deleteSnippet",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.openInObsidian",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.revealInOS",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "promptManager.newSnippet",
+          "when": "view == promptManager.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "promptManager.refresh",
+          "when": "view == promptManager.view",
+          "group": "navigation@2"
+        },
+        {
+          "command": "promptManager.openGlobalFolder",
+          "when": "view == promptManager.view",
+          "group": "1_config@1"
+        },
+        {
+          "command": "promptManager.configureInsertStrategy",
+          "when": "view == promptManager.view",
+          "group": "1_config@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "promptManager.insertFromTree",
+          "when": "view == promptManager.view && viewItem == promptFile",
+          "group": "inline@1"
+        },
+        {
+          "command": "promptManager.newSnippetHere",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "promptManager.insertFromTree",
+          "when": "view == promptManager.view && viewItem == promptFile",
+          "group": "1_insert@1"
+        },
+        {
+          "command": "promptManager.copyToClipboard",
+          "when": "view == promptManager.view && viewItem == promptFile",
+          "group": "1_insert@2"
+        },
+        {
+          "command": "promptManager.newSnippetHere",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder)$/",
+          "group": "2_create@1"
+        },
+        {
+          "command": "promptManager.newFolder",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder)$/",
+          "group": "2_create@2"
+        },
+        {
+          "command": "promptManager.openSnippet",
+          "when": "view == promptManager.view && viewItem == promptFile",
+          "group": "3_open@1"
+        },
+        {
+          "command": "promptManager.openInObsidian",
+          "when": "view == promptManager.view && viewItem == promptFile",
+          "group": "3_open@2"
+        },
+        {
+          "command": "promptManager.revealInOS",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder|Root\\.(global|workspace))$/",
+          "group": "3_open@3"
+        },
+        {
+          "command": "promptManager.renameSnippet",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "promptManager.deleteSnippet",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
+          "group": "7_modification@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "promptManager.openInObsidian",
+          "when": "resourceExtname == .md",
+          "group": "navigation@99"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "promptManager.insertSnippet",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      }
+    ],
+    "configuration": {
+      "title": "Prompt Manager",
+      "properties": {
+        "promptManager.global.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Show the Global Prompts scope."
+        },
+        "promptManager.global.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Folder holding global prompt snippets. Supports `~`, `${userHome}` and `${env:NAME}`. When empty, the extension's own global storage folder is used.\n\nExample: `~/Documents/Obsidian Vault/Prompts`"
+        },
+        "promptManager.workspace.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Show the Workspace Prompts scope."
+        },
+        "promptManager.workspace.path": {
+          "type": "string",
+          "default": ".vscode/prompts",
+          "scope": "resource",
+          "markdownDescription": "Folder holding workspace prompt snippets, relative to each workspace folder. Absolute paths are also accepted. Supports `${workspaceFolder}`."
+        },
+        "promptManager.fileExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".md",
+            ".txt"
+          ],
+          "scope": "window",
+          "description": "File extensions treated as prompt snippets."
+        },
+        "promptManager.newSnippet.extension": {
+          "type": "string",
+          "enum": [
+            ".md",
+            ".txt"
+          ],
+          "default": ".md",
+          "scope": "window",
+          "description": "Extension used when creating a new snippet."
+        },
+        "promptManager.excludeGlobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/.obsidian/**"
+          ],
+          "scope": "window",
+          "description": "Subfolders skipped when scanning snippet directories."
+        },
+        "promptManager.maxDepth": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 32,
+          "scope": "window",
+          "description": "Maximum subfolder nesting depth to scan."
+        },
+        "promptManager.maxFileSizeKb": {
+          "type": "number",
+          "default": 512,
+          "minimum": 1,
+          "scope": "window",
+          "description": "Refuse to read snippet files larger than this size, in KB."
+        },
+        "promptManager.quickPick.showPreview": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Read the highlighted snippet on demand to show a short preview in the Quick Pick."
+        },
+        "promptManager.insert.strategy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "workbench.action.chat.open",
+            "editor.action.clipboardPasteAction"
+          ],
+          "scope": "window",
+          "markdownDescription": "Ordered list of command ids tried after the snippet is copied to the clipboard. The first command that runs without throwing wins; otherwise the snippet simply stays on the clipboard.\n\n**Commands that genuinely carry text**\n- `workbench.action.chat.open` — prefills the chat input without submitting (`isPartialQuery`). Needs a chat provider; with none installed it resolves silently and does nothing.\n- `workbench.action.openQuickChat` / `workbench.action.quickchat.toggle` — prefills Quick Chat.\n- `editor.action.clipboardPasteAction` — pastes into a focused **text editor** only. It cannot paste into chat webviews.\n- `editor.insertText` — provided by this extension: inserts at the cursor of the active text editor.\n\n**Not usable here:** `workbench.action.chat.openInSidebar` (only moves the chat panel, takes no text), `claude-vscode.focus` and `antigravity.insertSnippet` (they ignore arguments). Use `#promptManager.insert.focusCommand#` for those instead.\n\nRun **Prompt Manager: Configure Insert Strategy...** to pick from the commands actually available in this window."
+        },
+        "promptManager.insert.focusCommand": {
+          "type": "string",
+          "default": "",
+          "scope": "window",
+          "markdownDescription": "Command run after copying when no insert strategy succeeded, to focus the chat input so you can press `Ctrl+V`. Examples: `claude-vscode.focus`, `antigravity.panel.focus`, `workbench.panel.chat.view.copilot.focus`."
+        },
+        "promptManager.insert.treatAsSnippet": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "markdownDescription": "When inserting into a text editor, interpret `$1` / `${1:name}` as snippet tabstops. Leave this off if your prompts contain a literal `$`, `{` or `}`."
+        },
+        "promptManager.insert.notification": {
+          "type": "string",
+          "enum": [
+            "statusBar",
+            "toast",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Brief status bar message",
+            "Information notification",
+            "No feedback"
+          ],
+          "default": "statusBar",
+          "scope": "window",
+          "description": "How to confirm that a snippet was copied or inserted."
+        },
+        "promptManager.obsidian.uriTemplate": {
+          "type": "string",
+          "default": "obsidian://open?path={absolutePath}",
+          "scope": "window",
+          "markdownDescription": "URI used by **Open in Obsidian**. Placeholders are substituted URL-encoded:\n- `{absolutePath}` — full path of the snippet file\n- `{relativePath}` — path relative to its prompt root\n- `{vault}` — the value of `#promptManager.obsidian.vaultName#`\n\nTo address a file inside a named vault instead, use:\n`obsidian://open?vault={vault}&file={relativePath}`"
+        },
+        "promptManager.obsidian.vaultName": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Obsidian vault name substituted for `{vault}` in `#promptManager.obsidian.uriTemplate#`."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.99.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.25.1",
+    "eslint": "^9.23.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.8.2"
+  }
+}
