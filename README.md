@@ -30,6 +30,15 @@ vault and the same files serve both tools.
 - **Open in Obsidian** — jump from a snippet to the same file in your vault.
 - **Live refresh** — the tree follows changes made outside VS Code.
 
+## Universal Compatibility
+
+This extension acts as a universal bridge for your prompts. Because it relies on standard file formats and native clipboard operations, it **works perfectly with absolutely any AI agent or IDE**:
+
+- Claude Code, Claude Desktop, Cursor, Antigravity, Codex, Windsurf
+- VS Code, JetBrains AI, Warp, Zed
+- Gemini CLI, Cline, Qoder, Kimi, Trae
+- ...and every other program where you can paste text.
+
 ## Getting started
 
 1. Open the **Prompt Manager** view in the Activity Bar.
