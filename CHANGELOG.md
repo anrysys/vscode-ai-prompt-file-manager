@@ -2,7 +2,7 @@
 
 All notable changes to the Prompt Manager extension are documented in this file.
 
-## [Unreleased]
+## [0.1.4] - 2026-09-15
 
 ### Added
 
