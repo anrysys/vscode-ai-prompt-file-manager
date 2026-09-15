@@ -4,6 +4,7 @@ import { Cmd } from '../constants';
 import { getFileExtensions, getInsertConfig } from '../config/configuration';
 import { labelFromFileName } from '../fs/paths';
 import { insertSnippetText } from '../insert/inserter';
+import { resolveMacros } from '../macros/macroResolver';
 import { pickSnippet } from '../ui/quickPick';
 import { guard, notifyInsert } from '../ui/notify';
 import { isFileNode, type PromptNode } from '../tree/nodes';
@@ -33,14 +34,34 @@ function toRef(arg?: PromptNode | vscode.Uri): SnippetRef | undefined {
     return isFileNode(arg) ? { uri: arg.entry.uri, label: arg.entry.label } : undefined;
 }
 
+/**
+ * Overwriting the user's clipboard with nothing is worse than doing nothing.
+ *
+ * Checked after expansion, not before: a snippet that is only `{{selection}}` is not empty
+ * on disk but can still produce nothing, and the two cases need different wording or the
+ * second one reads as a bug in the extension.
+ */
+function ensureNotEmpty(expanded: string, raw: string, label: string): boolean {
+    if (expanded.trim().length > 0) {
+        return true;
+    }
+    void vscode.window.showWarningMessage(
+        raw.trim().length === 0
+            ? `"${label}" is empty.`
+            : `"${label}" expanded to nothing: every macro in it resolved to empty text.`,
+    );
+    return false;
+}
+
 export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
     const { repo } = deps;
 
     async function insert(ref: SnippetRef): Promise<void> {
-        const text = await repo.readSnippet(ref.uri);
-        if (text.trim().length === 0) {
-            // Overwriting the user's clipboard with nothing is worse than doing nothing.
-            void vscode.window.showWarningMessage(`"${ref.label}" is empty.`);
+        const raw = await repo.readSnippet(ref.uri);
+        // Expanded here and not inside insertSnippetText: that function's first action is
+        // to overwrite the clipboard, so {{clipboard}} has to be read before it runs.
+        const text = await resolveMacros(raw);
+        if (!ensureNotEmpty(text, raw, ref.label)) {
             return;
         }
         const cfg = getInsertConfig();
@@ -85,7 +106,13 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
                 if (!ref) {
                     return;
                 }
-                const text = await repo.readSnippet(ref.uri);
+                const raw = await repo.readSnippet(ref.uri);
+                // Same ordering rule as the insert path: expand before the write, or
+                // {{clipboard}} would read back whatever we are about to replace.
+                const text = await resolveMacros(raw);
+                if (!ensureNotEmpty(text, raw, ref.label)) {
+                    return;
+                }
                 await vscode.env.clipboard.writeText(text);
                 vscode.window.setStatusBarMessage(
                     `$(clippy) Copied "${ref.label}" to clipboard`,

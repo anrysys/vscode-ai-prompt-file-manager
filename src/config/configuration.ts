@@ -94,6 +94,10 @@ export function getInsertConfig(): InsertConfig {
     };
 }
 
+export function isMacrosEnabled(): boolean {
+    return section().get<boolean>('macros.enabled', true);
+}
+
 export function getObsidianConfig(): ObsidianConfig {
     const cfg = section();
     const template = cfg

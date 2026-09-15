@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -374,7 +374,7 @@
           "type": "boolean",
           "default": false,
           "scope": "window",
-          "markdownDescription": "When inserting into a text editor, interpret `$1` / `${1:name}` as snippet tabstops. Leave this off if your prompts contain a literal `$`, `{` or `}`."
+          "markdownDescription": "When inserting into a text editor, interpret `$1` / `${1:name}` as snippet tabstops. Leave this off if your prompts contain a literal `$`, `{` or `}`. This applies to macro-expanded content too: text pulled in by `{{selection}}` or `{{clipboard}}` is interpreted the same way."
         },
         "promptManager.insert.notification": {
           "type": "string",
@@ -391,6 +391,12 @@
           "default": "statusBar",
           "scope": "window",
           "description": "How to confirm that a snippet was copied or inserted."
+        },
+        "promptManager.macros.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Expand context macros in snippet text before inserting or copying. The snippet file on disk is never modified.\n- `{{selection}}` — text selected in the active editor, or empty\n- `{{active_file}}` — file name of the active editor, for example `extension.ts`\n- `{{clipboard}}` — the current clipboard contents\n\nAnything else in double braces, such as `{{foo}}`, is left exactly as written."
         },
         "promptManager.obsidian.uriTemplate": {
           "type": "string",

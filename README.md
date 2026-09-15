@@ -22,6 +22,9 @@ vault and the same files serve both tools.
   in the repo (`.vscode/prompts` by default) and can be committed with it.
 - **Nested folders** — organise snippets into subfolders; they appear as groups in the tree
   and as a path in the Quick Pick, so search still finds everything.
+- **Context macros** — snippets are templates. `{{selection}}`, `{{active_file}}` and
+  `{{clipboard}}` are filled in from your editor as the snippet is copied or inserted.
+  The file on disk is never modified.
 - **Tree view** — a Prompt Manager container in the Activity Bar with create, rename,
   delete and reveal actions. **Clicking a snippet inserts it**; the pencil on the right of
   the row opens it for editing.
@@ -29,6 +32,17 @@ vault and the same files serve both tools.
   that building the tree never touches file contents. Long prompts are clipped to 15 lines.
 - **Open in Obsidian** — jump from a snippet to the same file in your vault.
 - **Live refresh** — the tree follows changes made outside VS Code.
+
+## Context Variables (Macros)
+
+Turn your prompts into dynamic templates. When you insert a snippet, the extension can automatically inject live context from your editor into the prompt text before it goes to the clipboard or chat.
+
+Support macros (use double curly braces):
+- `{{selection}}` — Injects the currently highlighted text from your active editor. Perfect for *"Refactor this code: {{selection}}"*.
+- `{{active_file}}` — Injects the file name of your currently active tab.
+- `{{clipboard}}` — Injects whatever is currently in your clipboard.
+
+*Note: Unknown tags like `{{vue_variable}}` are ignored and passed through literally, so your code prompts won't break.*
 
 ## Universal Compatibility
 
@@ -91,6 +105,7 @@ was inserted.
 | `promptManager.maxDepth` | `8` | Subfolder nesting depth to scan. |
 | `promptManager.maxFileSizeKb` | `512` | Refuse to read snippets larger than this. |
 | `promptManager.quickPick.showPreview` | `true` | Preview the highlighted snippet in the Quick Pick. |
+| `promptManager.macros.enabled` | `true` | Expand `{{selection}}`, `{{active_file}}` and `{{clipboard}}` in snippet text. |
 | `promptManager.insert.strategy` | chat, then paste | Ordered command ids tried after copying. |
 | `promptManager.insert.focusCommand` | *(empty)* | Command that focuses a chat input when nothing could insert. |
 | `promptManager.insert.treatAsSnippet` | `false` | Interpret `$1` / `${1:name}` as tabstops when inserting into an editor. |
@@ -114,6 +129,46 @@ named vault instead:
 A file name containing `#`, `?` or `&` cannot be expressed in an Obsidian URI, because
 VS Code re-encodes external URIs on the way out. The extension detects this and offers to
 copy the URI instead of opening a wrong file.
+
+## Context macros
+
+Snippet text is expanded on its way to the clipboard or editor. The snippet file itself is
+never rewritten — only the copy in memory.
+
+| Macro | Expands to |
+|---|---|
+| `{{selection}}` | Text selected in the active editor, or empty if there is no selection. |
+| `{{active_file}}` | File name of the active editor, for example `extension.ts`. |
+| `{{clipboard}}` | The current clipboard contents. |
+
+So a snippet containing
+
+```
+Explain this code from {{active_file}}:
+
+{{selection}}
+```
+
+turns into a complete prompt the moment you insert it.
+
+Details worth knowing:
+
+- **Anything else in double braces is left exactly as written.** `{{foo}}` stays `{{foo}}`,
+  so prompts that discuss Jinja, Handlebars or Mustache templates survive intact. Names are
+  case sensitive, and inner spaces are fine: `{{ selection }}` works.
+- **Expansion happens once.** If your clipboard happens to contain the text
+  `{{selection}}`, it is pasted in literally rather than expanded a second time.
+- **The hover preview and Quick Pick preview show the raw text**, macros and all. They read
+  the file as written; only the insert and copy commands expand.
+- **`{{selection}}` reads the primary selection**, and with an `editor.insertText` strategy
+  the insert then replaces that same selection — which is what makes "wrap my selection in
+  a prompt" work. With the default clipboard-only strategy, the selection stays put.
+- **`{{clipboard}}` in a snippet you *copy* is self-referential**: copying it twice in a row
+  nests the previous result. Fine once, surprising twice.
+- If everything in a snippet resolves to empty, the extension says so and leaves your
+  clipboard alone rather than wiping it.
+
+Set `promptManager.macros.enabled` to `false` to turn all of this off.
 
 ## Known limitations
 
