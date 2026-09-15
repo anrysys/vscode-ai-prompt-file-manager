@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB81C"/>
+      <stop offset="1" stop-color="#F5A000"/>
+    </linearGradient>
+    <!-- clears the bubble's stroke away from the bolt so the two never fuse
+         once VS Code flattens this to a single colour -->
+    <mask id="boltCut" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#fff"/>
+      <path d="M120.55 104.65L175.9 51.66L190.03 83.46L129.97 144.69Z" fill="#000" stroke="#000" stroke-width="16.7" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" rx="34" fill="#1C1C1C"/>
+  <path d="M102.92 179.14L75.94 184.4L75.7 155.05A64 64 0 1 1 102.92 179.14Z" fill="none" stroke="#05F27E" stroke-width="11.71" stroke-linejoin="round" stroke-linecap="round" mask="url(#boltCut)"/>
+  <path d="M175.9 51.66L120.55 104.65L161.77 104.65L129.97 144.69L190.03 83.46L153.52 83.46Z" fill="url(#bolt)" stroke="url(#bolt)" stroke-width="3.9" stroke-linejoin="round"/>
+</svg>

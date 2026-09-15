@@ -2,6 +2,27 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.1.12] - 2026-09-15
+
+### Changed
+
+- **The Activity Bar icon is now the product's own mark** — the speech bubble with the
+  lightning bolt — instead of the generic "file with a `>` prompt" glyph. It is drawn as a
+  single-colour line icon at codicon weight so it sits correctly beside Explorer, Search and
+  SCM. It cannot be green and orange there: VS Code renders view-container icons as a CSS
+  mask, which discards colour and tints the shape with `activityBar.foreground`.
+- **The Marketplace icon has been redrawn** from the same geometry, in colour. The
+  "PROMPT MANAGER / DEVELOPER TOOL" lettering is gone — it was unreadable at the ~42px the
+  Extensions list actually renders the icon at — and the dark plate now fills the whole
+  canvas, so the icon no longer sits inside an opaque white border on dark themes.
+- Logo and Activity Bar icon are one shape at two scales, so the editor and the Marketplace
+  now show the same mark.
+
+### Added
+
+- `resources/logo.svg` — the editable colour master that `icon.png` is rendered from. It is
+  excluded from the packaged extension.
+
 ## [0.1.11] - 2026-09-15
 
 ### Changed

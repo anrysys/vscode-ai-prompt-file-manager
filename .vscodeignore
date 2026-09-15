@@ -13,3 +13,4 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 guardyn_logo.*
+resources/logo.svg
