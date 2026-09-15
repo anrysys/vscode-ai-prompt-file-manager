@@ -2,6 +2,57 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.1.13] - 2026-09-15
+
+### Added
+
+- **Interactive variables: prompts can ask you for a value.** `{{?Language}}` opens an input
+  box on the way to the chat, `{{?Language=Rust}}` opens it pre-filled, and
+  `{{?Language:Rust|Go|Python}}` offers a list to pick from. So
+  `Rewrite this in {{?Language}}: {{selection}}` is one file instead of the dozen
+  near-identical ones it replaces. Each name is asked once, in the order it first appears, and
+  the answer fills every occurrence; where a name is mentioned bare in one place and defined
+  with a list in another, the definition wins.
+- **Escaping.** A backslash in front of a macro shows it instead of expanding it:
+  `\{{selection}}` inserts the literal text `{{selection}}`, which is what a prompt *about*
+  this extension needs. The backslash is consumed only where it actually suppressed an
+  expansion — `\{{foo}}` stays `\{{foo}}`, because `{{foo}}` was never a macro — so adding the
+  escape to a prompt that contains no macros cannot change it.
+
+### Changed
+
+- **`Esc` during an interactive variable cancels the entire insert**, at any step, and leaves
+  no trace: no partial prompt, and in particular no clipboard write. The clipboard still holds
+  whatever it held before. Every answer is collected before anything is written anywhere.
+- **The prompt cannot land on a selection you made while a dialog was open.** An input box
+  stays open for as long as you like — deliberately, so a stray click cannot discard what you
+  typed — which means you can highlight code in the editor while one is up. If you do, the
+  editor-writing strategies are skipped and the snippet goes to the clipboard, because the
+  range it would overwrite is not the one you triggered the insert on. The status bar says so.
+  This is the 0.1.9 guard extended to cover the pause this release introduces.
+- `{{selection}}` and `{{active_file}}` are now read *before* the first dialog rather than
+  after the last, so the code you had highlighted when you triggered the insert is the code
+  that reaches the prompt.
+- A snippet that expands to nothing because you answered every variable with empty text now
+  says so, instead of reporting that its macros resolved to empty.
+
+### Fixed
+
+- `{{\u00A0selection}}` and friends stay literal. The macro body is matched against ASCII
+  space and tab only, so a non-breaking space pasted in from Word, Notion or a chat client
+  cannot turn text that has always been literal into a working macro. The same applies to
+  U+2028 and U+2029, which are line separators that a plain `\r\n` check misses.
+
+### Unchanged
+
+- The clipboard copy still happens first, unconditionally, whatever the toggles say — except
+  when the insert is cancelled, which happens before any of it runs.
+- Expansion is still a single pass, so a value containing `{{selection}}` is inserted
+  literally rather than expanded a second time. That now covers what you type into an input
+  box as well.
+- Anything else in double braces is still left exactly as written, and the hover and Quick
+  Pick previews still show the raw file, macros and all. They never prompt.
+
 ## [0.1.12] - 2026-09-15
 
 ### Changed

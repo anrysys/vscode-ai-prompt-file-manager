@@ -4,18 +4,30 @@ import { log } from '../log';
 import type { InsertConfig } from '../config/configuration';
 import { buildInvocation } from './commandArgs';
 
+/** Why an editor-writing strategy was refused. Both end in the clipboard carrying the text. */
+export type InsertGuardReason = 'quotesSelection' | 'selectionChanged';
+
 /**
  * Where an editor-writing strategy may put the text.
  *
- * `writable: false` means the snippet quoted this editor's selection, so writing the
- * expanded text back would replace the very code it just quoted. That is unrecoverable
- * with one keystroke and never what someone sending a prompt to a chat panel wants, so
- * the editor strategies are skipped instead and the clipboard carries the result.
+ * `writable: false` means writing the expanded text back would destroy something. Either the
+ * snippet quoted this editor's selection, so the prompt would replace the very code it was built
+ * from; or the selection moved while an interactive variable was being filled in, so the range we
+ * would write over is not the one the user offered up. Both are unrecoverable with one keystroke
+ * and never what someone sending a prompt to a chat panel wants, so the editor strategies are
+ * skipped instead and the clipboard carries the result.
  */
 export interface InsertTarget {
     readonly editor: vscode.TextEditor;
     readonly writable: boolean;
+    /** Only meaningful when `writable` is false. Defaults to the selection-quoting case. */
+    readonly guardReason?: InsertGuardReason | undefined;
 }
+
+const GUARD_LOG: Readonly<Record<InsertGuardReason, string>> = {
+    quotesSelection: 'it would overwrite the selection the snippet quotes',
+    selectionChanged: 'the selection moved while the snippet was being filled in',
+};
 
 /**
  * What the two settings mean, in command ids.
@@ -53,7 +65,7 @@ export function planStrategy(toggles: InsertToggles): string[] {
 
 export type InsertOutcome =
     | { kind: 'clipboardOnly' }
-    | { kind: 'guarded' }
+    | { kind: 'guarded'; reason: InsertGuardReason }
     | { kind: 'editor' }
     | { kind: 'command'; commandId: string }
     | { kind: 'focused'; commandId: string };
@@ -81,13 +93,14 @@ export async function insertSnippetText(
     }
 
     const available = new Set(await vscode.commands.getCommands(true));
-    let guarded = false;
+    let guarded: InsertGuardReason | undefined;
 
     for (const commandId of cfg.strategy) {
         if (commandId === EDITOR_INSERT_TEXT) {
             if (target && !target.writable) {
-                log.debug('Insert strategy: skipping the editor insert, it would overwrite the quoted selection.');
-                guarded = true;
+                const reason = target.guardReason ?? 'quotesSelection';
+                log.debug(`Insert strategy: skipping the editor insert, ${GUARD_LOG[reason]}.`);
+                guarded = reason;
                 continue;
             }
             if (await insertIntoEditor(text, cfg.treatAsSnippet, target?.editor)) {
@@ -112,8 +125,9 @@ export async function insertSnippetText(
             // Paste lands wherever the focus is, so the guard has to look at the focused
             // document rather than at the target.
             if (target && !target.writable && focused.document === target.editor.document) {
-                log.debug('Insert strategy: skipping the paste action, it would overwrite the quoted selection.');
-                guarded = true;
+                const reason = target.guardReason ?? 'quotesSelection';
+                log.debug(`Insert strategy: skipping the paste action, ${GUARD_LOG[reason]}.`);
+                guarded = reason;
                 continue;
             }
         }
@@ -130,7 +144,9 @@ export async function insertSnippetText(
     const outcome = await runFocusCommand(cfg);
     // Only worth saying when nothing else happened: otherwise the message would describe a
     // skipped step rather than the insert the user actually got.
-    return outcome.kind === 'clipboardOnly' && guarded ? { kind: 'guarded' } : outcome;
+    return outcome.kind === 'clipboardOnly' && guarded
+        ? { kind: 'guarded', reason: guarded }
+        : outcome;
 }
 
 async function insertIntoEditor(

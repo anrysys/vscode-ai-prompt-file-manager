@@ -21,8 +21,11 @@ export function describeOutcome(outcome: InsertOutcome, label: string): string {
             return `Copied ${name} to clipboard, press Ctrl+V in the chat input`;
         case 'guarded':
             // Silence here would read as "the insert did nothing", and the user would try
-            // again rather than reach for Ctrl+V.
-            return `Copied ${name} to clipboard — not inserted, it quotes the selection it would have replaced`;
+            // again rather than reach for Ctrl+V. The two reasons need different words: one is
+            // about what the snippet says, the other about what the user did while answering it.
+            return outcome.reason === 'selectionChanged'
+                ? `Copied ${name} to clipboard — not inserted, your selection moved while you were filling it in`
+                : `Copied ${name} to clipboard — not inserted, it quotes the selection it would have replaced`;
         case 'clipboardOnly':
             return `Copied ${name} to clipboard`;
     }

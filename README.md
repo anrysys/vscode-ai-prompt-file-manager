@@ -20,6 +20,9 @@ vault and the same files serve both tools.
   `{{clipboard}}` are filled in from your editor as the snippet is copied or inserted, and
   keep working when the focus has already moved into a chat panel. The file on disk is
   never modified.
+- **Interactive variables** — `{{?Language}}` asks you for a value on the way through, and
+  `{{?Language:Rust|Go|Python}}` offers a list to pick from. One template covers the cases
+  you would otherwise keep as separate files.
 - **Tree view** — an AI Prompt File Manager container in the Activity Bar with create, rename,
   delete and reveal actions. Clicking a row opens the snippet for editing; the insert icon
   on the right of the row sends it to the chat.
@@ -36,6 +39,12 @@ Support macros (use double curly braces):
 - `{{selection}}` — Injects the highlighted text from the editor you were last working in. Perfect for *"Refactor this code: {{selection}}"*.
 - `{{active_file}}` — Injects the file name of that same editor.
 - `{{clipboard}}` — Injects whatever is currently in your clipboard.
+
+Some prompts need a value only you can supply. Interactive variables ask for it as the snippet goes out:
+- `{{?Language}}` — Opens an input box. `{{?Language=Rust}}` opens it pre-filled.
+- `{{?Language:Rust|Go|Python}}` — Opens a list to pick from, so you stop retyping the same word.
+
+So `Rewrite this in {{?Language}}: {{selection}}` is one file that covers every language you use. Press `Esc` and the whole insert is called off, clipboard included.
 
 *Note: Unknown tags like `{{vue_variable}}` are ignored and passed through literally, so your code prompts won't break.*
 
@@ -116,7 +125,7 @@ was inserted.
 | `promptManager.maxDepth` | `8` | Subfolder nesting depth to scan. |
 | `promptManager.maxFileSizeKb` | `512` | Refuse to read snippets larger than this. |
 | `promptManager.quickPick.showPreview` | `true` | Preview the highlighted snippet in the Quick Pick. |
-| `promptManager.macros.enabled` | `true` | Expand `{{selection}}`, `{{active_file}}` and `{{clipboard}}` in snippet text. |
+| `promptManager.macros.enabled` | `true` | Expand `{{selection}}`, `{{active_file}}`, `{{clipboard}}` and the interactive `{{?Name}}` variables in snippet text. |
 | `promptManager.insert.pasteIntoChatPanel` | `true` | Pre-fill the Copilot / Quick Chat input after copying. |
 | `promptManager.insert.pasteIntoEditor` | `false` | Write into the active editor, replacing its selection. Never applies to the editor a `{{selection}}` was read from. |
 | `promptManager.insert.strategy` | *(unset)* | **Deprecated** ordered list of raw command ids. Still honoured while set. |
@@ -189,6 +198,74 @@ Details worth knowing:
   clipboard alone rather than wiping it.
 
 Set `promptManager.macros.enabled` to `false` to turn all of this off.
+
+## Interactive variables
+
+The macros above read your editor. Interactive variables read *you*: they open a dialog as the
+snippet is on its way out, and substitute what you answer.
+
+| Form | What you get |
+|---|---|
+| `{{?Language}}` | An input box, empty. |
+| `{{?Language=Rust}}` | An input box, pre-filled with `Rust`. |
+| `{{?Language:Rust\|Go\|Python}}` | A list to pick from. |
+
+So a snippet containing
+
+```
+Rewrite this code in {{?Language}} using {{?Framework}}:
+
+{{selection}}
+```
+
+asks two short questions and hands the finished prompt to your chat. One file replaces the dozen
+near-identical ones you would otherwise keep.
+
+Options are separated by `|` rather than a comma, because option text contains commas.
+
+Details worth knowing:
+
+- **`Esc` cancels the whole insert, at any step.** Not the current question — the insert. Nothing
+  has been written when you press it, and that includes your clipboard, which still holds whatever
+  it held before. A half-filled prompt is worse than no prompt.
+- **Each name is asked once**, in the order it first appears, and the answer fills every
+  occurrence. `{{?Lang}}` three times is one question. The dialog title counts the questions
+  (`(2/3)`) so three in a row do not read as a freeze.
+- **A name may be mentioned before it is defined.** `Use {{?Lang}} … Target: {{?Lang:Rust|Go}}`
+  asks once, with the list — the definition wins wherever you put it.
+- **Clicking elsewhere does not discard what you typed.** The dialogs stay open until you answer
+  or cancel, so you can go and look something up mid-prompt. One consequence worth knowing: if you
+  select code while a dialog is open, the extension will not write the prompt into your editor,
+  because the selection you made is not the one you triggered the insert on. It goes to the
+  clipboard instead and the status bar says so.
+- **`{{selection}}` is read before the first question**, not after the last, so the code you had
+  highlighted when you triggered the insert is the code that ends up in the prompt.
+- **A malformed variable is left exactly as written**, like any unknown tag. `{{?}}` and
+  `{{?Name:}}` (a colon promising options but listing none) travel through untouched, so you see
+  them in the output and can fix the file. Note that `{{?Lang|Rust|Go}}` — a forgotten colon — is
+  malformed for the same reason and passes through silently.
+- **Names may contain spaces and non-Latin letters**, so `{{?Target language}}` and `{{?Язык}}`
+  both work. They are case sensitive.
+- Interactive variables obey `promptManager.macros.enabled` along with everything else, and the
+  hover and Quick Pick previews never prompt — they show the raw text.
+
+### Showing a macro without expanding it
+
+Put a backslash in front of it:
+
+| You write | You get |
+|---|---|
+| `\{{selection}}` | `{{selection}}` |
+| `\{{?Language}}` | `{{?Language}}` |
+| `\{{foo}}` | `\{{foo}}` — unchanged, because `{{foo}}` was never a macro |
+
+The backslash disappears only where it actually suppressed an expansion, so adding it to a prompt
+that has no macros in it changes nothing. Backslashes anywhere else — Windows paths, LaTeX, regex —
+are left alone.
+
+The one thing this cannot express is a literal backslash immediately followed by an expanding
+macro: `C:\{{selection}}` gives you `C:{{selection}}`, not `C:` plus the selection. Put a character
+between them if you need both.
 
 ## Known limitations
 

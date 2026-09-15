@@ -5,7 +5,7 @@ import { getFileExtensions, getInsertConfig } from '../config/configuration';
 import { labelFromFileName } from '../fs/paths';
 import { insertSnippetText, type InsertTarget } from '../insert/inserter';
 import { getMacroSourceEditor } from '../macros/editorTracker';
-import { collectMacroNames } from '../macros/macroSyntax';
+import { collectInteractiveVariables, referencesMacro } from '../macros/macroSyntax';
 import { resolveMacros } from '../macros/macroResolver';
 import { pickSnippet } from '../ui/quickPick';
 import { guard, notifyInsert } from '../ui/notify';
@@ -40,33 +40,74 @@ function toRef(arg?: PromptNode | vscode.Uri): SnippetRef | undefined {
  * Overwriting the user's clipboard with nothing is worse than doing nothing.
  *
  * Checked after expansion, not before: a snippet that is only `{{selection}}` is not empty
- * on disk but can still produce nothing, and the two cases need different wording or the
- * second one reads as a bug in the extension.
+ * on disk but can still produce nothing, and the three cases need different wording or they
+ * read as a bug in the extension. The third one matters most: telling someone their macros
+ * resolved to nothing, seconds after they typed the empty answers themselves, sends them
+ * looking for a fault that is not there.
  */
 function ensureNotEmpty(expanded: string, raw: string, label: string): boolean {
     if (expanded.trim().length > 0) {
         return true;
     }
+    if (raw.trim().length === 0) {
+        void vscode.window.showWarningMessage(`"${label}" is empty.`);
+        return false;
+    }
     void vscode.window.showWarningMessage(
-        raw.trim().length === 0
-            ? `"${label}" is empty.`
+        collectInteractiveVariables(raw).length > 0
+            ? `"${label}" expanded to nothing: the values you entered were all empty.`
             : `"${label}" expanded to nothing: every macro in it resolved to empty text.`,
     );
     return false;
 }
 
 /**
- * A snippet that quotes the selection must never be written back over that selection: the
- * expanded prompt would replace the code it was built from, and no notification makes that
- * a fair trade. Checked against the raw text, because with macros disabled the literal
- * `{{selection}}` would replace the code just as thoroughly.
+ * Decides whether the expanded prompt may be written into the editor at all.
+ *
+ * Two ways it may not:
+ *
+ * A snippet that quotes the selection must never be written back over that selection — the
+ * expanded prompt would replace the code it was built from, and no notification makes that a
+ * fair trade. `referencesMacro` rather than `collectMacroNames`, and against the raw text,
+ * because an escaped `\{{selection}}` or a disabled macro leaves the literal text `{{selection}}`
+ * in the result, which would replace the code just as thoroughly.
+ *
+ * And a selection that appeared or moved since the snippet was read is not one the user offered
+ * up. Interactive variables keep an input box open for as long as the user cares to think, and
+ * `ignoreFocusOut` means they can click into the editor and drag out a selection while it is
+ * open — so the range we are about to overwrite may be code they highlighted thirty seconds
+ * after triggering the insert. Refusing is strictly safer than writing to a range that has
+ * moved, and the clipboard still carries the result either way.
  */
-function toInsertTarget(raw: string, editor: vscode.TextEditor | undefined): InsertTarget | undefined {
+export function toInsertTarget(
+    raw: string,
+    editor: vscode.TextEditor | undefined,
+    selectionsAtTrigger: readonly vscode.Selection[] | undefined,
+): InsertTarget | undefined {
     if (!editor) {
         return undefined;
     }
-    const quotesSelection = !editor.selection.isEmpty && collectMacroNames(raw).has('selection');
-    return { editor, writable: !quotesSelection };
+    if (!editor.selection.isEmpty && referencesMacro(raw, 'selection')) {
+        return { editor, writable: false, guardReason: 'quotesSelection' };
+    }
+    if (!sameSelections(editor.selections, selectionsAtTrigger)) {
+        return { editor, writable: false, guardReason: 'selectionChanged' };
+    }
+    return { editor, writable: true };
+}
+
+/**
+ * Every selection, not just the primary one: an editor insert replaces all of them, so a second
+ * cursor added while a dialog was open is drift of exactly the same kind.
+ */
+function sameSelections(
+    current: readonly vscode.Selection[],
+    atTrigger: readonly vscode.Selection[] | undefined,
+): boolean {
+    if (atTrigger === undefined || current.length !== atTrigger.length) {
+        return false;
+    }
+    return current.every((selection, i) => selection.isEqual(atTrigger[i]!));
 }
 
 export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
@@ -78,14 +119,24 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
         // halves: the editor that answered {{selection}} is the editor an editor-insert
         // strategy writes back into.
         const source = getMacroSourceEditor();
+        // Snapshotted alongside it, because resolveMacros may now sit on an input box for as
+        // long as the user likes, and the selections are live the whole time. Copied, since the
+        // array VS Code hands back describes the editor as it is now, not as it was.
+        const selectionsAtTrigger = source ? [...source.selections] : undefined;
         // Expanded here and not inside insertSnippetText: that function's first action is
         // to overwrite the clipboard, so {{clipboard}} has to be read before it runs.
-        const text = await resolveMacros(raw, source);
+        const text = await resolveMacros(raw, { source, label: ref.label });
+        // Esc during an interactive variable. Silently, and above all without touching the
+        // clipboard: a cancelled insert has to leave no trace at all.
+        if (text === undefined) {
+            return;
+        }
         if (!ensureNotEmpty(text, raw, ref.label)) {
             return;
         }
         const cfg = getInsertConfig();
-        const outcome = await insertSnippetText(text, cfg, toInsertTarget(raw, source));
+        const target = toInsertTarget(raw, source, selectionsAtTrigger);
+        const outcome = await insertSnippetText(text, cfg, target);
         notifyInsert(outcome, ref.label, cfg);
     }
 
@@ -128,8 +179,13 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
                 }
                 const raw = await repo.readSnippet(ref.uri);
                 // Same ordering rule as the insert path: expand before the write, or
-                // {{clipboard}} would read back whatever we are about to replace.
-                const text = await resolveMacros(raw);
+                // {{clipboard}} would read back whatever we are about to replace. Interactive
+                // variables are asked here too — a copy that left `{{?Language}}` in the
+                // clipboard would hand the user text they cannot use.
+                const text = await resolveMacros(raw, { label: ref.label });
+                if (text === undefined) {
+                    return;
+                }
                 if (!ensureNotEmpty(text, raw, ref.label)) {
                     return;
                 }

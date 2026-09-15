@@ -2,7 +2,12 @@ import * as assert from 'node:assert';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { collectMacroNames, expandMacros, MACRO_NAMES } from '../macros/macroSyntax';
+import {
+    collectMacroNames,
+    expandMacros,
+    MACRO_NAMES,
+    referencesMacro,
+} from '../macros/macroSyntax';
 import { resolveMacros } from '../macros/macroResolver';
 
 /**
@@ -102,6 +107,112 @@ suite('collectMacroNames', () => {
     test('every name in MACRO_NAMES is recognised', () => {
         for (const name of MACRO_NAMES) {
             assert.strictEqual(collectMacroNames(`{{${name}}}`).size, 1, name);
+        }
+    });
+});
+
+/**
+ * 0.1.13 widened the pattern from `{{name}}` to `{{body}}` so the `?` form could share one
+ * single-pass replace. These suites exist to prove that widening changed nothing else: the
+ * escape is the only intended difference in behaviour for text written before 0.1.13.
+ */
+suite('escaping', () => {
+    test('a backslash makes a known macro print itself', () => {
+        assert.strictEqual(expandMacros('\\{{selection}}', VALUES), '{{selection}}');
+        assert.strictEqual(expandMacros('\\{{ clipboard }}', VALUES), '{{ clipboard }}');
+    });
+
+    test('an unknown tag keeps its backslash, byte for byte', () => {
+        // The backslash is consumed only where it actually suppressed an expansion, so adding
+        // escaping cannot rewrite text that never had a macro in it.
+        assert.strictEqual(expandMacros('\\{{foo}}', VALUES), '\\{{foo}}');
+        assert.strictEqual(expandMacros('\\{{?}}', VALUES), '\\{{?}}');
+    });
+
+    test('only the backslash touching the braces is consumed', () => {
+        // Documented consequence: there is no way to write a literal backslash immediately
+        // before a macro that should still expand.
+        assert.strictEqual(expandMacros('\\\\{{selection}}', VALUES), '\\{{selection}}');
+        assert.strictEqual(expandMacros('C:\\{{selection}}', VALUES), 'C:{{selection}}');
+    });
+
+    test('a backslash anywhere else is left alone', () => {
+        const text = 'C:\\Users\\dev  \\d+  \\frac{1}{2}  {{selection}}';
+        assert.strictEqual(expandMacros(text, VALUES), 'C:\\Users\\dev  \\d+  \\frac{1}{2}  SEL');
+    });
+
+    test('an escaped macro is not resolved, but still counts as a reference', () => {
+        // Nothing to fetch: the value would be thrown away. But the literal `{{selection}}` it
+        // leaves behind would overwrite the user's code just as thoroughly, so the insert guard
+        // still has to see it.
+        assert.strictEqual(collectMacroNames('\\{{clipboard}}').size, 0);
+        assert.ok(referencesMacro('\\{{selection}}', 'selection'));
+        assert.ok(referencesMacro('{{selection}}', 'selection'));
+        assert.ok(!referencesMacro('{{clipboard}}', 'selection'));
+    });
+});
+
+suite('the widened pattern is backward compatible', () => {
+    /** The exact name rule as it shipped in 0.1.12, frozen here as the reference. */
+    const LEGACY = /\{\{[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*\}\}/g;
+    const legacyExpand = (text: string): string =>
+        text.replace(LEGACY, (match, name: string) =>
+            (MACRO_NAMES as readonly string[]).includes(name)
+                ? VALUES[name as keyof typeof VALUES]
+                : match,
+        );
+
+    test('unicode whitespace inside the braces stays literal', () => {
+        // `String.trim()` strips all of these, so classifying the body with it would turn a
+        // non-breaking space pasted in from Word or Notion into a working macro — text that is
+        // literal in every released version. The plain-macro branch matches ASCII space and tab
+        // only, exactly as before.
+        for (const ws of ['\u00A0', '\u000B', '\u000C', '\uFEFF', '\u3000', '\u2007', '\u205F']) {
+            const text = `{{${ws}selection}}`;
+            assert.strictEqual(expandMacros(text, VALUES), text, JSON.stringify(ws));
+        }
+    });
+
+    test('a body cannot span a line break, including U+2028 and U+2029', () => {
+        for (const brk of ['\n', '\r\n', '\u2028', '\u2029', '\u0085']) {
+            const text = `{{${brk}selection${brk}}}`;
+            assert.strictEqual(expandMacros(text, VALUES), text, JSON.stringify(brk));
+        }
+    });
+
+    test('every generated string expands exactly as 0.1.12 did, unless it is escaped', () => {
+        // The pattern is the one thing here that no amount of hand-picked cases can cover, so
+        // this walks the brace/whitespace/name boundary exhaustively at short lengths.
+        const alphabet = [
+            '{', '}', '{{', '}}', ' ', '\t', '\n', 'selection', 'clipboard', 'foo', '_', '1',
+            '\\', ':', '?', '=', '|', '\u00A0', '\u2028',
+        ];
+        let checked = 0;
+        const divergent: string[] = [];
+
+        const walk = (prefix: string, depth: number): void => {
+            if (depth === 0) {
+                checked += 1;
+                if (expandMacros(prefix, VALUES) !== legacyExpand(prefix)) {
+                    divergent.push(prefix);
+                }
+                return;
+            }
+            for (const token of alphabet) {
+                walk(prefix + token, depth - 1);
+            }
+        };
+        for (let depth = 1; depth <= 3; depth += 1) {
+            walk('', depth);
+        }
+
+        assert.ok(checked > 7000, `expected a real corpus, walked ${checked}`);
+        // Every difference must be an escape, which is the one behaviour change 0.1.13 makes.
+        for (const text of divergent) {
+            assert.ok(
+                text.includes('\\'),
+                `${JSON.stringify(text)} changed meaning without an escape in it`,
+            );
         }
     });
 });
@@ -207,7 +318,7 @@ suite('resolveMacros in the extension host', () => {
         editor.selection = new vscode.Selection(0, 0, 0, 6);
 
         const expanded = await resolveMacros(body);
-        assert.ok(expanded.includes('needle'), 'the macro should have expanded');
+        assert.ok(expanded?.includes('needle'), 'the macro should have expanded');
 
         const onDisk = new TextDecoder('utf-8').decode(await vscode.workspace.fs.readFile(file));
         assert.strictEqual(onDisk, body, 'the file on disk must still hold the raw macros');

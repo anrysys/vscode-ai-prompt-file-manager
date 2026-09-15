@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -406,7 +406,7 @@
           "type": "boolean",
           "default": true,
           "scope": "window",
-          "markdownDescription": "Expand context macros in snippet text before inserting or copying. The snippet file on disk is never modified.\n- `{{selection}}` — text selected in the active editor, or empty\n- `{{active_file}}` — file name of the active editor, for example `extension.ts`\n- `{{clipboard}}` — the current clipboard contents\n\nAnything else in double braces, such as `{{foo}}`, is left exactly as written."
+          "markdownDescription": "Expand macros in snippet text before inserting or copying. The snippet file on disk is never modified.\n- `{{selection}}` — text selected in the active editor, or empty\n- `{{active_file}}` — file name of the active editor, for example `extension.ts`\n- `{{clipboard}}` — the current clipboard contents\n\nInteractive variables ask you for a value as the snippet is inserted:\n- `{{?Language}}` — an input box\n- `{{?Language=Rust}}` — an input box, pre-filled\n- `{{?Language:Rust|Go|Python}}` — a list to pick from\n\nPressing `Esc` at any point cancels the whole insert and leaves your clipboard untouched.\n\nAnything else in double braces, such as `{{foo}}`, is left exactly as written. Put a backslash in front to show a macro without expanding it: `\\{{selection}}`."
         },
         "promptManager.obsidian.uriTemplate": {
           "type": "string",
