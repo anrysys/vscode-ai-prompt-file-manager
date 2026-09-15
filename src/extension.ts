@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }),
     );
 
-    log.info('Prompt Manager activated.');
+    log.info('AI Prompt File Manager activated.');
 }
 
 export function deactivate(): void {

@@ -1,11 +1,5 @@
 # AI Prompt File Manager
 
-<p align="center">
-  <img src="icon.png" width="128" alt="AI Prompt File Manager Logo">
-</p>
-
-# Prompt Manager
-
 Keep your AI prompts as ordinary `.md` / `.txt` files, find them with a keystroke, and get
 them into a chat panel without hunting through folders.
 
@@ -25,7 +19,7 @@ vault and the same files serve both tools.
 - **Context macros** — snippets are templates. `{{selection}}`, `{{active_file}}` and
   `{{clipboard}}` are filled in from your editor as the snippet is copied or inserted.
   The file on disk is never modified.
-- **Tree view** — a Prompt Manager container in the Activity Bar with create, rename,
+- **Tree view** — an AI Prompt File Manager container in the Activity Bar with create, rename,
   delete and reveal actions. **Clicking a snippet inserts it**; the pencil on the right of
   the row opens it for editing.
 - **Hover to preview** — hovering a snippet shows the start of its text, read on demand so
@@ -55,7 +49,7 @@ This extension acts as a universal bridge for your prompts. Because it relies on
 
 ## Getting started
 
-1. Open the **Prompt Manager** view in the Activity Bar.
+1. Open the **AI Prompt File Manager** view in the Activity Bar.
 2. Press **New Snippet**, choose a scope, and give it a title. The file is created and
    opened for editing; the folder is created for you if it does not exist.
 3. Press `Ctrl+Alt+P` (`Cmd+Alt+P` on macOS) anywhere, pick the snippet, and paste.
@@ -82,7 +76,7 @@ So the snippet is **always copied to the clipboard first**, and only then does t
 make a best-effort attempt at a real insertion. If nothing can insert it, `Ctrl+V` still
 works — that is the guarantee.
 
-Configure the attempt order with **Prompt Manager: Configure Insert Strategy...**, which
+Configure the attempt order with **AI Prompt File Manager: Configure Insert Strategy...**, which
 lists only the commands actually available in your window. For a chat panel that cannot be
 typed into, set `promptManager.insert.focusCommand` (for example `claude-vscode.focus` or
 `antigravity.panel.focus`) to focus its input so you can paste immediately.

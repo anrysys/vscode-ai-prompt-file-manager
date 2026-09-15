@@ -71,7 +71,7 @@ export async function pickSnippet(
         quickPick.busy = false;
 
         if (!items.some(isSnippetItem)) {
-            quickPick.placeholder = 'No snippets found. Create one from the Prompt Manager view.';
+            quickPick.placeholder = 'No snippets found. Create one from the AI Prompt File Manager view.';
         }
 
         if (getQuickPickShowPreview()) {

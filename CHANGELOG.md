@@ -1,6 +1,23 @@
 # Change Log
 
-All notable changes to the Prompt Manager extension are documented in this file.
+All notable changes to the AI Prompt File Manager extension are documented in this file.
+
+## [0.1.5] - 2026-09-15
+
+### Changed
+
+- **One name everywhere.** The view container, the command category, the settings section
+  and the output channel now read *AI Prompt File Manager* instead of *Prompt Manager*,
+  matching the Marketplace listing. Setting keys, command ids and keybindings are unchanged.
+- **The README no longer repeats the Marketplace header.** The extension page draws its own
+  icon, title and description from the manifest, so the duplicate heading and the logo image
+  at the top of the README have been removed. The page now shows the name once and the logo
+  once.
+
+### Fixed
+
+- Two unrelated image files in the repository root were being shipped inside the `.vsix`.
+  They are now excluded from the package.
 
 ## [0.1.4] - 2026-09-15
 

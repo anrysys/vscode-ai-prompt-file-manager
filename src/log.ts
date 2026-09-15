@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 let channel: vscode.LogOutputChannel | undefined;
 
 export function createLogger(): vscode.LogOutputChannel {
-    channel = vscode.window.createOutputChannel('Prompt Manager', { log: true });
+    channel = vscode.window.createOutputChannel('AI Prompt File Manager', { log: true });
     return channel;
 }
 

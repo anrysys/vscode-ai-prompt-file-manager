@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -35,7 +35,7 @@
       "activitybar": [
         {
           "id": "promptManager",
-          "title": "Prompt Manager",
+          "title": "AI Prompt File Manager",
           "icon": "resources/prompt-manager.svg"
         }
       ]
@@ -44,9 +44,9 @@
       "promptManager": [
         {
           "id": "promptManager.view",
-          "name": "Prompt Manager",
+          "name": "AI Prompt File Manager",
           "icon": "resources/prompt-manager.svg",
-          "contextualTitle": "Prompt Manager"
+          "contextualTitle": "AI Prompt File Manager"
         }
       ]
     },
@@ -60,83 +60,83 @@
       {
         "command": "promptManager.insertSnippet",
         "title": "Insert Snippet",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(insert)"
       },
       {
         "command": "promptManager.insertFromTree",
         "title": "Insert This Snippet",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(insert)"
       },
       {
         "command": "promptManager.copyToClipboard",
         "title": "Copy Snippet to Clipboard",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(clippy)"
       },
       {
         "command": "promptManager.openSnippet",
         "title": "Edit Snippet",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(edit)"
       },
       {
         "command": "promptManager.newSnippet",
         "title": "New Snippet...",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(add)"
       },
       {
         "command": "promptManager.newSnippetHere",
         "title": "New Snippet Here...",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(new-file)"
       },
       {
         "command": "promptManager.newFolder",
         "title": "New Folder...",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(new-folder)"
       },
       {
         "command": "promptManager.renameSnippet",
         "title": "Rename...",
-        "category": "Prompt Manager"
+        "category": "AI Prompt File Manager"
       },
       {
         "command": "promptManager.deleteSnippet",
         "title": "Delete",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(trash)"
       },
       {
         "command": "promptManager.openInObsidian",
         "title": "Open in Obsidian",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(link-external)"
       },
       {
         "command": "promptManager.revealInOS",
         "title": "Reveal in File Explorer",
-        "category": "Prompt Manager"
+        "category": "AI Prompt File Manager"
       },
       {
         "command": "promptManager.refresh",
         "title": "Refresh",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(refresh)"
       },
       {
         "command": "promptManager.openGlobalFolder",
         "title": "Open Global Prompts Folder",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(folder-opened)"
       },
       {
         "command": "promptManager.configureInsertStrategy",
         "title": "Configure Insert Strategy...",
-        "category": "Prompt Manager",
+        "category": "AI Prompt File Manager",
         "icon": "$(gear)"
       }
     ],
@@ -270,7 +270,7 @@
       }
     ],
     "configuration": {
-      "title": "Prompt Manager",
+      "title": "AI Prompt File Manager",
       "properties": {
         "promptManager.global.enabled": {
           "type": "boolean",
@@ -362,7 +362,7 @@
             "editor.action.clipboardPasteAction"
           ],
           "scope": "window",
-          "markdownDescription": "Ordered list of command ids tried after the snippet is copied to the clipboard. The first command that runs without throwing wins; otherwise the snippet simply stays on the clipboard.\n\n**Commands that genuinely carry text**\n- `workbench.action.chat.open` — prefills the chat input without submitting (`isPartialQuery`). Needs a chat provider; with none installed it resolves silently and does nothing.\n- `workbench.action.openQuickChat` / `workbench.action.quickchat.toggle` — prefills Quick Chat.\n- `editor.action.clipboardPasteAction` — pastes into a focused **text editor** only. It cannot paste into chat webviews.\n- `editor.insertText` — provided by this extension: inserts at the cursor of the active text editor.\n\n**Not usable here:** `workbench.action.chat.openInSidebar` (only moves the chat panel, takes no text), `claude-vscode.focus` and `antigravity.insertSnippet` (they ignore arguments). Use `#promptManager.insert.focusCommand#` for those instead.\n\nRun **Prompt Manager: Configure Insert Strategy...** to pick from the commands actually available in this window."
+          "markdownDescription": "Ordered list of command ids tried after the snippet is copied to the clipboard. The first command that runs without throwing wins; otherwise the snippet simply stays on the clipboard.\n\n**Commands that genuinely carry text**\n- `workbench.action.chat.open` — prefills the chat input without submitting (`isPartialQuery`). Needs a chat provider; with none installed it resolves silently and does nothing.\n- `workbench.action.openQuickChat` / `workbench.action.quickchat.toggle` — prefills Quick Chat.\n- `editor.action.clipboardPasteAction` — pastes into a focused **text editor** only. It cannot paste into chat webviews.\n- `editor.insertText` — provided by this extension: inserts at the cursor of the active text editor.\n\n**Not usable here:** `workbench.action.chat.openInSidebar` (only moves the chat panel, takes no text), `claude-vscode.focus` and `antigravity.insertSnippet` (they ignore arguments). Use `#promptManager.insert.focusCommand#` for those instead.\n\nRun **AI Prompt File Manager: Configure Insert Strategy...** to pick from the commands actually available in this window."
         },
         "promptManager.insert.focusCommand": {
           "type": "string",
