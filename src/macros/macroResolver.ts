@@ -1,3 +1,4 @@
+import { getLastActiveTextEditor } from "./editorTracker";
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { isMacrosEnabled } from '../config/configuration';
@@ -7,7 +8,7 @@ import { collectMacroNames, expandMacros, type MacroName } from './macroSyntax';
 async function valueOf(name: MacroName): Promise<string> {
     switch (name) {
         case 'selection': {
-            const editor = vscode.window.activeTextEditor;
+            const editor = getLastActiveTextEditor();
             // No editor and an empty selection are the same thing to a prompt: nothing.
             if (!editor || editor.selection.isEmpty) {
                 return '';
@@ -15,7 +16,7 @@ async function valueOf(name: MacroName): Promise<string> {
             return editor.document.getText(editor.selection);
         }
         case 'active_file': {
-            const editor = vscode.window.activeTextEditor;
+            const editor = getLastActiveTextEditor();
             // `uri.path` rather than `fsPath`: always '/'-separated, so untitled and
             // virtual documents give a sane base name too.
             return editor ? path.basename(editor.document.uri.path) : '';

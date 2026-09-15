@@ -1,3 +1,4 @@
+import { activateEditorTracker } from "./macros/editorTracker";
 import * as vscode from 'vscode';
 import { VIEW_ID } from './constants';
 import { createLogger, log } from './log';
@@ -9,6 +10,7 @@ import { WatcherManager } from './watch/watcherManager';
 import { registerAllCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext): void {
+    activateEditorTracker(context);
     const channel = createLogger();
 
     const repo = new SnippetRepository(context);
