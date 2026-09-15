@@ -38,6 +38,9 @@ export const ContextValue = {
  */
 export const EDITOR_INSERT_TEXT = 'editor.insertText';
 
+/** VS Code's own paste, which writes into whichever text editor holds the focus. */
+export const PASTE_ACTION = 'editor.action.clipboardPasteAction';
+
 /**
  * File formats this extension is built around, per its contributed defaults.
  * Used when deciding whether a typed title already carries an extension, so a custom

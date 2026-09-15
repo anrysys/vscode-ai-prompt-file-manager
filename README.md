@@ -76,6 +76,12 @@ So the snippet is **always copied to the clipboard first**, and only then does t
 make a best-effort attempt at a real insertion. If nothing can insert it, `Ctrl+V` still
 works — that is the guarantee.
 
+The second guarantee is that a prompt never eats the code it quotes. If a snippet contains
+`{{selection}}`, the strategies that write into a document — `editor.insertText` and
+`editor.action.clipboardPasteAction` — are skipped for the editor that selection was read
+from, whatever your configured order says. You get the prompt on the clipboard and a
+message saying why, instead of your function replaced by a prompt about your function.
+
 Configure the attempt order with **AI Prompt File Manager: Configure Insert Strategy...**, which
 lists only the commands actually available in your window. For a chat panel that cannot be
 typed into, set `promptManager.insert.focusCommand` (for example `claude-vscode.focus` or
@@ -100,7 +106,7 @@ was inserted.
 | `promptManager.maxFileSizeKb` | `512` | Refuse to read snippets larger than this. |
 | `promptManager.quickPick.showPreview` | `true` | Preview the highlighted snippet in the Quick Pick. |
 | `promptManager.macros.enabled` | `true` | Expand `{{selection}}`, `{{active_file}}` and `{{clipboard}}` in snippet text. |
-| `promptManager.insert.strategy` | chat, then paste | Ordered command ids tried after copying. |
+| `promptManager.insert.strategy` | chat only | Ordered command ids tried after copying. Commands that write into a document are skipped for the editor a `{{selection}}` came from. |
 | `promptManager.insert.focusCommand` | *(empty)* | Command that focuses a chat input when nothing could insert. |
 | `promptManager.insert.treatAsSnippet` | `false` | Interpret `$1` / `${1:name}` as tabstops when inserting into an editor. |
 | `promptManager.insert.notification` | `statusBar` | `statusBar`, `toast` or `none`. |
@@ -160,10 +166,10 @@ Details worth knowing:
   from silently expanding to nothing. Only ordinary documents qualify — diff sides, output
   channels, search results and other generated views are never used — and the fallback is
   dropped the moment its document is closed, so a macro never quotes a file you cannot see.
-- **`{{selection}}` reads the primary selection**, and with an `editor.insertText` strategy
-  the insert replaces that same selection in that same editor, even if the focus has since
-  moved elsewhere — which is what makes "wrap my selection in a prompt" work. With the
-  default clipboard-only strategy, the selection stays put.
+- **`{{selection}}` reads the primary selection**, and the editor it came from is then off
+  limits to the writing strategies, so the prompt cannot replace the code it quotes. An
+  `editor.insertText` strategy still writes into that editor for snippets that do not use
+  `{{selection}}`.
 - **`{{clipboard}}` in a snippet you *copy* is self-referential**: copying it twice in a row
   nests the previous result. Fine once, surprising twice.
 - If everything in a snippet resolves to empty, the extension says so and leaves your

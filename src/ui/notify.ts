@@ -19,6 +19,10 @@ export function describeOutcome(outcome: InsertOutcome, label: string): string {
             return `Copied ${name} to clipboard, ran ${outcome.commandId}`;
         case 'focused':
             return `Copied ${name} to clipboard, press Ctrl+V in the chat input`;
+        case 'guarded':
+            // Silence here would read as "the insert did nothing", and the user would try
+            // again rather than reach for Ctrl+V.
+            return `Copied ${name} to clipboard — not inserted, it quotes the selection it would have replaced`;
         case 'clipboardOnly':
             return `Copied ${name} to clipboard`;
     }

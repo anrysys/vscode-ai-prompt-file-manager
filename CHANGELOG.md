@@ -2,6 +2,21 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.1.10] - 2026-09-15
+
+### Fixed
+
+- **A prompt can no longer overwrite the code it quotes.** Inserting a snippet that
+  contains `{{selection}}` could replace the selected code with the expanded prompt, losing
+  the code, when the insert strategy included `editor.insertText` or
+  `editor.action.clipboardPasteAction`. Those two commands are now skipped for the editor
+  the selection was read from, no matter how the strategy is ordered, and the snippet stays
+  on the clipboard with a message explaining why. Snippets that do not quote the selection
+  still insert as before.
+- `editor.action.clipboardPasteAction` is no longer part of the default insert strategy, so
+  a fresh install cannot paste a prompt into the file you are looking at. The default is now
+  the chat command alone.
+
 ## [0.1.8] - 2026-09-15
 
 ### Fixed

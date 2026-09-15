@@ -167,11 +167,92 @@ suite('insert follows the macro source editor', () => {
             () => vscode.window.activeTextEditor?.document === otherDoc,
         );
 
-        const outcome = await insertSnippetText('WRAPPED', editorInsert, source);
+        const outcome = await insertSnippetText('WRAPPED', editorInsert, {
+            editor: source,
+            writable: true,
+        });
 
         assert.strictEqual(outcome.kind, 'editor');
         // Without the target the insert would have landed in whatever is focused now.
         assert.strictEqual(sourceDoc.getText(), 'WRAPPED\n');
         assert.strictEqual(otherDoc.getText(), 'do not touch\n');
+    });
+});
+
+suite('the insert never eats the selection it quoted', () => {
+    const base: InsertConfig = {
+        strategy: [],
+        focusCommand: '',
+        treatAsSnippet: false,
+        notification: 'none',
+    };
+
+    teardown(async () => {
+        await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    });
+
+    async function openSelected(content: string, selection: vscode.Selection) {
+        const doc = await vscode.workspace.openTextDocument({ content, language: 'plaintext' });
+        const editor = await vscode.window.showTextDocument(doc, { preview: false });
+        editor.selection = selection;
+        return { doc, editor };
+    }
+
+    /**
+     * The 0.1.9 report, reproduced: select a function, press the insert keybinding with an
+     * editor-writing strategy configured, and the prompt lands on top of the code it just
+     * quoted. Both strategies that can write into a document are covered, because the user
+     * had both of them configured at once.
+     */
+    test('editor.insertText is skipped when the snippet quotes this selection', async function () {
+        this.timeout(TIMEOUT_MS);
+        const { doc, editor } = await openSelected(
+            'function broken() {}\n',
+            new vscode.Selection(0, 0, 0, 20),
+        );
+
+        const outcome = await insertSnippetText(
+            'Find the bug in function broken() {}',
+            { ...base, strategy: ['editor.insertText'] },
+            { editor, writable: false },
+        );
+
+        assert.strictEqual(outcome.kind, 'guarded');
+        assert.strictEqual(doc.getText(), 'function broken() {}\n');
+        assert.strictEqual(
+            await vscode.env.clipboard.readText(),
+            'Find the bug in function broken() {}',
+        );
+    });
+
+    test('the paste action is skipped when the focused editor is the quoted one', async function () {
+        this.timeout(TIMEOUT_MS);
+        const { doc, editor } = await openSelected(
+            'function broken() {}\n',
+            new vscode.Selection(0, 0, 0, 20),
+        );
+
+        const outcome = await insertSnippetText(
+            'Find the bug in function broken() {}',
+            { ...base, strategy: ['editor.action.clipboardPasteAction'] },
+            { editor, writable: false },
+        );
+
+        assert.strictEqual(outcome.kind, 'guarded');
+        assert.strictEqual(doc.getText(), 'function broken() {}\n');
+    });
+
+    test('a snippet that quotes nothing still inserts', async function () {
+        this.timeout(TIMEOUT_MS);
+        const { doc, editor } = await openSelected('', new vscode.Selection(0, 0, 0, 0));
+
+        const outcome = await insertSnippetText(
+            'plain body',
+            { ...base, strategy: ['editor.insertText'] },
+            { editor, writable: true },
+        );
+
+        assert.strictEqual(outcome.kind, 'editor');
+        assert.strictEqual(doc.getText(), 'plain body');
     });
 });

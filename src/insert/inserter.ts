@@ -1,11 +1,25 @@
 import * as vscode from 'vscode';
-import { EDITOR_INSERT_TEXT } from '../constants';
+import { EDITOR_INSERT_TEXT, PASTE_ACTION } from '../constants';
 import { log } from '../log';
 import type { InsertConfig } from '../config/configuration';
 import { buildInvocation } from './commandArgs';
 
+/**
+ * Where an editor-writing strategy may put the text.
+ *
+ * `writable: false` means the snippet quoted this editor's selection, so writing the
+ * expanded text back would replace the very code it just quoted. That is unrecoverable
+ * with one keystroke and never what someone sending a prompt to a chat panel wants, so
+ * the editor strategies are skipped instead and the clipboard carries the result.
+ */
+export interface InsertTarget {
+    readonly editor: vscode.TextEditor;
+    readonly writable: boolean;
+}
+
 export type InsertOutcome =
     | { kind: 'clipboardOnly' }
+    | { kind: 'guarded' }
     | { kind: 'editor' }
     | { kind: 'command'; commandId: string }
     | { kind: 'focused'; commandId: string };
@@ -17,15 +31,14 @@ export type InsertOutcome =
  * into the Claude Code or Antigravity chat webviews, so Ctrl+V has to remain the
  * guaranteed path no matter what the configured strategy does.
  *
- * `target` is the editor the caller resolved the snippet's macros against. Passing it
- * keeps the two halves of "wrap my selection in a prompt" on the same document: without
- * it, `{{selection}}` could be read from the editor the user last worked in while the
- * insert landed in whatever happens to be active now.
+ * `target` is the editor the caller resolved the snippet's macros against, plus whether
+ * writing into it is safe. Passing it keeps the two halves of an editor insert on the same
+ * document, and lets the guard above refuse the one case that destroys work.
  */
 export async function insertSnippetText(
     text: string,
     cfg: InsertConfig,
-    target?: vscode.TextEditor,
+    target?: InsertTarget,
 ): Promise<InsertOutcome> {
     await vscode.env.clipboard.writeText(text);
 
@@ -34,10 +47,16 @@ export async function insertSnippetText(
     }
 
     const available = new Set(await vscode.commands.getCommands(true));
+    let guarded = false;
 
     for (const commandId of cfg.strategy) {
         if (commandId === EDITOR_INSERT_TEXT) {
-            if (await insertIntoEditor(text, cfg.treatAsSnippet, target)) {
+            if (target && !target.writable) {
+                log.debug('Insert strategy: skipping the editor insert, it would overwrite the quoted selection.');
+                guarded = true;
+                continue;
+            }
+            if (await insertIntoEditor(text, cfg.treatAsSnippet, target?.editor)) {
                 return { kind: 'editor' };
             }
             continue;
@@ -48,14 +67,21 @@ export async function insertSnippetText(
             continue;
         }
 
-        // The paste action is a no-op without a focused text editor, so skip it rather
-        // than let it "succeed" and stop the strategy walk.
-        if (
-            commandId === 'editor.action.clipboardPasteAction' &&
-            !vscode.window.activeTextEditor
-        ) {
-            log.debug('Insert strategy: no active text editor, skipping paste action.');
-            continue;
+        if (commandId === PASTE_ACTION) {
+            const focused = vscode.window.activeTextEditor;
+            // The paste action is a no-op without a focused text editor, so skip it rather
+            // than let it "succeed" and stop the strategy walk.
+            if (!focused) {
+                log.debug('Insert strategy: no active text editor, skipping paste action.');
+                continue;
+            }
+            // Paste lands wherever the focus is, so the guard has to look at the focused
+            // document rather than at the target.
+            if (target && !target.writable && focused.document === target.editor.document) {
+                log.debug('Insert strategy: skipping the paste action, it would overwrite the quoted selection.');
+                guarded = true;
+                continue;
+            }
         }
 
         try {
@@ -67,7 +93,10 @@ export async function insertSnippetText(
         }
     }
 
-    return await runFocusCommand(cfg);
+    const outcome = await runFocusCommand(cfg);
+    // Only worth saying when nothing else happened: otherwise the message would describe a
+    // skipped step rather than the insert the user actually got.
+    return outcome.kind === 'clipboardOnly' && guarded ? { kind: 'guarded' } : outcome;
 }
 
 async function insertIntoEditor(

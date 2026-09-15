@@ -3,8 +3,9 @@ import * as vscode from 'vscode';
 import { Cmd } from '../constants';
 import { getFileExtensions, getInsertConfig } from '../config/configuration';
 import { labelFromFileName } from '../fs/paths';
-import { insertSnippetText } from '../insert/inserter';
+import { insertSnippetText, type InsertTarget } from '../insert/inserter';
 import { getMacroSourceEditor } from '../macros/editorTracker';
+import { collectMacroNames } from '../macros/macroSyntax';
 import { resolveMacros } from '../macros/macroResolver';
 import { pickSnippet } from '../ui/quickPick';
 import { guard, notifyInsert } from '../ui/notify';
@@ -54,6 +55,20 @@ function ensureNotEmpty(expanded: string, raw: string, label: string): boolean {
     return false;
 }
 
+/**
+ * A snippet that quotes the selection must never be written back over that selection: the
+ * expanded prompt would replace the code it was built from, and no notification makes that
+ * a fair trade. Checked against the raw text, because with macros disabled the literal
+ * `{{selection}}` would replace the code just as thoroughly.
+ */
+function toInsertTarget(raw: string, editor: vscode.TextEditor | undefined): InsertTarget | undefined {
+    if (!editor) {
+        return undefined;
+    }
+    const quotesSelection = !editor.selection.isEmpty && collectMacroNames(raw).has('selection');
+    return { editor, writable: !quotesSelection };
+}
+
 export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
     const { repo } = deps;
 
@@ -70,7 +85,7 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
             return;
         }
         const cfg = getInsertConfig();
-        const outcome = await insertSnippetText(text, cfg, source);
+        const outcome = await insertSnippetText(text, cfg, toInsertTarget(raw, source));
         notifyInsert(outcome, ref.label, cfg);
     }
 
