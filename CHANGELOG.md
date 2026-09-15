@@ -2,6 +2,48 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.1.8] - 2026-09-15
+
+### Fixed
+
+- **A macro can no longer quote a file you have closed.** The editor remembered for
+  `{{selection}}` and `{{active_file}}` is dropped as soon as its document closes, and is
+  ignored if it was closed behind the tracker's back. Before this, a snippet inserted after
+  closing a tab could carry that tab's text into the prompt without any sign of it.
+- **Only real documents can be a macro source.** Diff sides, output channels, search
+  results and other generated views are filtered out by URI scheme, so `{{active_file}}` no
+  longer reports something like a `git:` diff as the file you are working on.
+- **An editor insert lands where the selection came from.** The editor the macros were
+  resolved against is threaded through to the insert, so the `editor.insertText` strategy
+  replaces that selection even if the focus moved on in between. Both macros are also read
+  from a single snapshot, so `{{selection}}` and `{{active_file}}` can no longer disagree
+  about which editor they mean.
+
+### Changed
+
+- The tracker is testable in isolation, and the suite now covers the three cases that
+  matter: focus in a webview, a closed document, and a virtual document. The 0.1.7 fix
+  shipped with no coverage — the existing "no active editor" test passed only because the
+  test process loads its own copy of the module.
+- README: the tree row description matched neither the tooltip nor the code (a click opens
+  the snippet, the insert icon inserts it), and the macro section now states which editor
+  the macros read from.
+
+## [0.1.7] - 2026-09-15
+
+### Fixed
+
+- `{{selection}}` and `{{active_file}}` expanded to nothing when the snippet was inserted
+  from a chat panel: VS Code reports no active text editor while a webview holds the focus.
+  The extension now remembers the last editor you worked in and resolves macros against it.
+
+## [0.1.6] - 2026-09-15
+
+### Fixed
+
+- The hover tooltip claimed "Click to insert, pencil to edit" while a row click actually
+  opens the snippet and the inline icon inserts it. The tooltip now matches the behaviour.
+
 ## [0.1.5] - 2026-09-15
 
 ### Changed

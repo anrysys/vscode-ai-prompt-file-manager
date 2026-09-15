@@ -1,14 +1,22 @@
-import { getLastActiveTextEditor } from "./editorTracker";
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { isMacrosEnabled } from '../config/configuration';
+import { getMacroSourceEditor } from './editorTracker';
 import { collectMacroNames, expandMacros, type MacroName } from './macroSyntax';
 
-/** Reads one macro from live window state. Only called for macros the snippet uses. */
-async function valueOf(name: MacroName): Promise<string> {
+/**
+ * Reads one macro from live window state. Only called for macros the snippet uses.
+ *
+ * The editor is passed in rather than looked up here: resolving each macro separately
+ * would let `{{selection}}` and `{{active_file}}` come from two different editors if the
+ * user switched tabs across the `await` in between.
+ */
+async function valueOf(
+    name: MacroName,
+    editor: vscode.TextEditor | undefined,
+): Promise<string> {
     switch (name) {
         case 'selection': {
-            const editor = getLastActiveTextEditor();
             // No editor and an empty selection are the same thing to a prompt: nothing.
             if (!editor || editor.selection.isEmpty) {
                 return '';
@@ -16,7 +24,6 @@ async function valueOf(name: MacroName): Promise<string> {
             return editor.document.getText(editor.selection);
         }
         case 'active_file': {
-            const editor = getLastActiveTextEditor();
             // `uri.path` rather than `fsPath`: always '/'-separated, so untitled and
             // virtual documents give a sane base name too.
             return editor ? path.basename(editor.document.uri.path) : '';
@@ -40,8 +47,15 @@ async function valueOf(name: MacroName): Promise<string> {
  * real round-trip to the main process — on Linux it also negotiates with the current
  * selection owner — and paying that on every insert of a macro-free snippet would be a
  * needless regression on the hottest path.
+ *
+ * `source` defaults to the tracked editor and is taken once, so the caller can thread the
+ * same editor into `insertSnippetText` and have the insert land where the selection was
+ * read from.
  */
-export async function resolveMacros(text: string): Promise<string> {
+export async function resolveMacros(
+    text: string,
+    source: vscode.TextEditor | undefined = getMacroSourceEditor(),
+): Promise<string> {
     if (!isMacrosEnabled()) {
         return text;
     }
@@ -55,7 +69,7 @@ export async function resolveMacros(text: string): Promise<string> {
         clipboard: '',
     };
     for (const name of used) {
-        values[name] = await valueOf(name);
+        values[name] = await valueOf(name, source);
     }
     return expandMacros(text, values);
 }

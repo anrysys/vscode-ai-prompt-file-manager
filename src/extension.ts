@@ -1,17 +1,20 @@
-import { activateEditorTracker } from "./macros/editorTracker";
 import * as vscode from 'vscode';
 import { VIEW_ID } from './constants';
 import { createLogger, log } from './log';
 import { affectsRoots } from './config/configuration';
 import { SnippetRepository } from './fs/repository';
+import { activateEditorTracker } from './macros/editorTracker';
 import { PromptTreeProvider } from './tree/promptTreeProvider';
 import type { PromptNode } from './tree/nodes';
 import { WatcherManager } from './watch/watcherManager';
 import { registerAllCommands } from './commands';
 
 export function activate(context: vscode.ExtensionContext): void {
-    activateEditorTracker(context);
     const channel = createLogger();
+
+    // Registered first among the feature wiring: the tracker only knows about editors that
+    // became active after it started listening.
+    activateEditorTracker(context);
 
     const repo = new SnippetRepository(context);
     const provider = new PromptTreeProvider(repo);

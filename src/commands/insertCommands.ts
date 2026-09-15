@@ -4,6 +4,7 @@ import { Cmd } from '../constants';
 import { getFileExtensions, getInsertConfig } from '../config/configuration';
 import { labelFromFileName } from '../fs/paths';
 import { insertSnippetText } from '../insert/inserter';
+import { getMacroSourceEditor } from '../macros/editorTracker';
 import { resolveMacros } from '../macros/macroResolver';
 import { pickSnippet } from '../ui/quickPick';
 import { guard, notifyInsert } from '../ui/notify';
@@ -58,14 +59,18 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
 
     async function insert(ref: SnippetRef): Promise<void> {
         const raw = await repo.readSnippet(ref.uri);
+        // Resolved once, before anything else can steal the focus, and then handed to both
+        // halves: the editor that answered {{selection}} is the editor an editor-insert
+        // strategy writes back into.
+        const source = getMacroSourceEditor();
         // Expanded here and not inside insertSnippetText: that function's first action is
         // to overwrite the clipboard, so {{clipboard}} has to be read before it runs.
-        const text = await resolveMacros(raw);
+        const text = await resolveMacros(raw, source);
         if (!ensureNotEmpty(text, raw, ref.label)) {
             return;
         }
         const cfg = getInsertConfig();
-        const outcome = await insertSnippetText(text, cfg);
+        const outcome = await insertSnippetText(text, cfg, source);
         notifyInsert(outcome, ref.label, cfg);
     }
 

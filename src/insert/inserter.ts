@@ -16,10 +16,16 @@ export type InsertOutcome =
  * The clipboard write is unconditional and happens first: there is no API that can type
  * into the Claude Code or Antigravity chat webviews, so Ctrl+V has to remain the
  * guaranteed path no matter what the configured strategy does.
+ *
+ * `target` is the editor the caller resolved the snippet's macros against. Passing it
+ * keeps the two halves of "wrap my selection in a prompt" on the same document: without
+ * it, `{{selection}}` could be read from the editor the user last worked in while the
+ * insert landed in whatever happens to be active now.
  */
 export async function insertSnippetText(
     text: string,
     cfg: InsertConfig,
+    target?: vscode.TextEditor,
 ): Promise<InsertOutcome> {
     await vscode.env.clipboard.writeText(text);
 
@@ -31,7 +37,7 @@ export async function insertSnippetText(
 
     for (const commandId of cfg.strategy) {
         if (commandId === EDITOR_INSERT_TEXT) {
-            if (await insertIntoActiveEditor(text, cfg.treatAsSnippet)) {
+            if (await insertIntoEditor(text, cfg.treatAsSnippet, target)) {
                 return { kind: 'editor' };
             }
             continue;
@@ -64,9 +70,15 @@ export async function insertSnippetText(
     return await runFocusCommand(cfg);
 }
 
-async function insertIntoActiveEditor(text: string, asSnippet: boolean): Promise<boolean> {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
+async function insertIntoEditor(
+    text: string,
+    asSnippet: boolean,
+    target: vscode.TextEditor | undefined,
+): Promise<boolean> {
+    const editor = target ?? vscode.window.activeTextEditor;
+    // A target whose document was closed between resolving the macros and getting here is
+    // no better than no target at all.
+    if (!editor || editor.document.isClosed) {
         return false;
     }
     if (asSnippet) {

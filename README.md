@@ -17,11 +17,12 @@ vault and the same files serve both tools.
 - **Nested folders** — organise snippets into subfolders; they appear as groups in the tree
   and as a path in the Quick Pick, so search still finds everything.
 - **Context macros** — snippets are templates. `{{selection}}`, `{{active_file}}` and
-  `{{clipboard}}` are filled in from your editor as the snippet is copied or inserted.
-  The file on disk is never modified.
+  `{{clipboard}}` are filled in from your editor as the snippet is copied or inserted, and
+  keep working when the focus has already moved into a chat panel. The file on disk is
+  never modified.
 - **Tree view** — an AI Prompt File Manager container in the Activity Bar with create, rename,
-  delete and reveal actions. **Clicking a snippet inserts it**; the pencil on the right of
-  the row opens it for editing.
+  delete and reveal actions. Clicking a row opens the snippet for editing; the insert icon
+  on the right of the row sends it to the chat.
 - **Hover to preview** — hovering a snippet shows the start of its text, read on demand so
   that building the tree never touches file contents. Long prompts are clipped to 15 lines.
 - **Open in Obsidian** — jump from a snippet to the same file in your vault.
@@ -32,8 +33,8 @@ vault and the same files serve both tools.
 Turn your prompts into dynamic templates. When you insert a snippet, the extension can automatically inject live context from your editor into the prompt text before it goes to the clipboard or chat.
 
 Support macros (use double curly braces):
-- `{{selection}}` — Injects the currently highlighted text from your active editor. Perfect for *"Refactor this code: {{selection}}"*.
-- `{{active_file}}` — Injects the file name of your currently active tab.
+- `{{selection}}` — Injects the highlighted text from the editor you were last working in. Perfect for *"Refactor this code: {{selection}}"*.
+- `{{active_file}}` — Injects the file name of that same editor.
 - `{{clipboard}}` — Injects whatever is currently in your clipboard.
 
 *Note: Unknown tags like `{{vue_variable}}` are ignored and passed through literally, so your code prompts won't break.*
@@ -54,9 +55,8 @@ This extension acts as a universal bridge for your prompts. Because it relies on
    opened for editing; the folder is created for you if it does not exist.
 3. Press `Ctrl+Alt+P` (`Cmd+Alt+P` on macOS) anywhere, pick the snippet, and paste.
 
-From the tree, a single click on a snippet inserts it — the whole row is the target, since
-that is the action you repeat all day. Editing is the pencil icon on the row, and both
-actions are also listed by name in the right-click menu.
+From the tree, a single click on a snippet opens it for editing; the insert icon on the
+right of the row inserts it. Both actions are also listed by name in the right-click menu.
 
 A title may contain `/` to nest: `review/security` creates `review/security.md`.
 
@@ -131,8 +131,8 @@ never rewritten — only the copy in memory.
 
 | Macro | Expands to |
 |---|---|
-| `{{selection}}` | Text selected in the active editor, or empty if there is no selection. |
-| `{{active_file}}` | File name of the active editor, for example `extension.ts`. |
+| `{{selection}}` | Text selected in the source editor, or empty if there is no selection. |
+| `{{active_file}}` | File name of the source editor, for example `extension.ts`. |
 | `{{clipboard}}` | The current clipboard contents. |
 
 So a snippet containing
@@ -154,9 +154,16 @@ Details worth knowing:
   `{{selection}}`, it is pasted in literally rather than expanded a second time.
 - **The hover preview and Quick Pick preview show the raw text**, macros and all. They read
   the file as written; only the insert and copy commands expand.
+- **The source editor is the active one, or the last one you worked in.** By the time you
+  trigger an insert the focus is often already inside a chat panel, where VS Code reports no
+  active editor at all; falling back to the last real editor is what keeps `{{selection}}`
+  from silently expanding to nothing. Only ordinary documents qualify — diff sides, output
+  channels, search results and other generated views are never used — and the fallback is
+  dropped the moment its document is closed, so a macro never quotes a file you cannot see.
 - **`{{selection}}` reads the primary selection**, and with an `editor.insertText` strategy
-  the insert then replaces that same selection — which is what makes "wrap my selection in
-  a prompt" work. With the default clipboard-only strategy, the selection stays put.
+  the insert replaces that same selection in that same editor, even if the focus has since
+  moved elsewhere — which is what makes "wrap my selection in a prompt" work. With the
+  default clipboard-only strategy, the selection stays put.
 - **`{{clipboard}}` in a snippet you *copy* is self-referential**: copying it twice in a row
   nests the previous result. Fine once, surprising twice.
 - If everything in a snippet resolves to empty, the extension says so and leaves your
