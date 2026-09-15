@@ -17,6 +17,40 @@ export interface InsertTarget {
     readonly writable: boolean;
 }
 
+/**
+ * What the two settings mean, in command ids.
+ *
+ * The settings are deliberately booleans: a raw ordered list of VS Code command ids asked
+ * every user to know which commands carry text, which silently do nothing, and which write
+ * into their code — and getting that last one wrong cost a user their selected function.
+ * The ids live here instead, where they can be verified by tests.
+ */
+export interface InsertToggles {
+    /** Pre-fill the chat input. Cannot reach chat webviews such as Claude Code. */
+    readonly pasteIntoChatPanel: boolean;
+    /** Write into the text editor, replacing its selection. Off by default, and guarded. */
+    readonly pasteIntoEditor: boolean;
+}
+
+/** Tried in order; the first that does not throw wins. Quick Chat backs up the chat panel. */
+export const CHAT_PANEL_COMMANDS: readonly string[] = [
+    'workbench.action.chat.open',
+    'workbench.action.openQuickChat',
+];
+
+export const EDITOR_COMMANDS: readonly string[] = [EDITOR_INSERT_TEXT];
+
+/**
+ * Chat first, always: it is the non-destructive option, so a user with both toggles on
+ * gets the prompt in the chat input and their code left alone.
+ */
+export function planStrategy(toggles: InsertToggles): string[] {
+    return [
+        ...(toggles.pasteIntoChatPanel ? CHAT_PANEL_COMMANDS : []),
+        ...(toggles.pasteIntoEditor ? EDITOR_COMMANDS : []),
+    ];
+}
+
 export type InsertOutcome =
     | { kind: 'clipboardOnly' }
     | { kind: 'guarded' }

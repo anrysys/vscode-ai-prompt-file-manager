@@ -2,11 +2,10 @@ import * as vscode from 'vscode';
 import { Cmd } from '../constants';
 import { log } from '../log';
 import {
-    getInsertConfig,
+    getInsertToggles,
     getObsidianConfig,
-    updateInsertStrategy,
+    updateInsertToggles,
 } from '../config/configuration';
-import { KNOWN_INSERT_COMMANDS, NON_TEXT_COMMANDS } from '../insert/commandArgs';
 import {
     buildObsidianUri,
     needsVaultName,
@@ -95,46 +94,51 @@ export function registerMiscCommands(deps: CommandDeps): vscode.Disposable[] {
 
         vscode.commands.registerCommand(
             Cmd.configureInsert,
-            guard('Could not update the insert strategy', async () => {
-                const available = new Set(await vscode.commands.getCommands(true));
-                const current = getInsertConfig().strategy;
+            guard('Could not update the insert behaviour', async () => {
+                const current = getInsertToggles();
 
-                const candidates = KNOWN_INSERT_COMMANDS.filter(
-                    (entry) => available.has(entry.id) || entry.id === 'editor.insertText',
-                );
-                if (candidates.length === 0) {
-                    void vscode.window.showWarningMessage(
-                        'No known text-carrying chat commands are available in this window.',
-                    );
-                    return;
-                }
-
-                const picked = await vscode.window.showQuickPick(
-                    candidates.map((entry) => ({
-                        label: entry.id,
-                        detail: entry.detail,
-                        picked: current.includes(entry.id),
-                    })),
+                // Two plain choices rather than a list of command ids: the ids were the
+                // whole problem, since picking the wrong one wrote prompts into code.
+                const items = [
                     {
-                        canPickMany: true,
-                        placeHolder:
-                            'Commands tried after copying, in order. The snippet is always copied first.',
+                        key: 'pasteIntoChatPanel' as const,
+                        label: 'Pre-fill the chat input',
+                        detail: 'Puts the prompt in the Copilot or Quick Chat box without sending it',
+                        picked: current.pasteIntoChatPanel,
                     },
-                );
+                    {
+                        key: 'pasteIntoEditor' as const,
+                        label: 'Paste into the editor',
+                        detail: '$(warning) Replaces the selected text in your active code editor',
+                        picked: current.pasteIntoEditor,
+                    },
+                ];
+
+                const picked = await vscode.window.showQuickPick(items, {
+                    canPickMany: true,
+                    placeHolder:
+                        'What should happen after the snippet is copied? The copy itself always happens.',
+                });
                 if (!picked) {
                     return;
                 }
 
-                const chosen = picked.map((item) => item.label);
-                await updateInsertStrategy(chosen);
-                void vscode.window.showInformationMessage(
-                    chosen.length === 0
-                        ? 'Insert strategy cleared. Snippets will be copied to the clipboard only.'
-                        : `Insert strategy set to: ${chosen.join(' -> ')}`,
-                );
-                log.info(
-                    `Insert strategy updated. Commands that cannot carry text: ${NON_TEXT_COMMANDS.join(', ')}`,
-                );
+                const chosen = new Set(picked.map((item) => item.key));
+                const toggles = {
+                    pasteIntoChatPanel: chosen.has('pasteIntoChatPanel'),
+                    pasteIntoEditor: chosen.has('pasteIntoEditor'),
+                };
+                await updateInsertToggles(toggles);
+
+                const enabled = items
+                    .filter((item) => chosen.has(item.key))
+                    .map((item) => item.label.toLowerCase());
+                const message =
+                    enabled.length === 0
+                        ? 'Snippets will be copied to the clipboard only.'
+                        : `After copying: ${enabled.join(', ')}.`;
+                void vscode.window.showInformationMessage(message);
+                log.info(`Insert behaviour updated. ${message}`);
             }),
         ),
     ];

@@ -76,16 +76,27 @@ So the snippet is **always copied to the clipboard first**, and only then does t
 make a best-effort attempt at a real insertion. If nothing can insert it, `Ctrl+V` still
 works — that is the guarantee.
 
-The second guarantee is that a prompt never eats the code it quotes. If a snippet contains
-`{{selection}}`, the strategies that write into a document — `editor.insertText` and
-`editor.action.clipboardPasteAction` — are skipped for the editor that selection was read
-from, whatever your configured order says. You get the prompt on the clipboard and a
-message saying why, instead of your function replaced by a prompt about your function.
+What happens after the copy is two checkboxes, not a list of command ids:
 
-Configure the attempt order with **AI Prompt File Manager: Configure Insert Strategy...**, which
-lists only the commands actually available in your window. For a chat panel that cannot be
-typed into, set `promptManager.insert.focusCommand` (for example `claude-vscode.focus` or
+| Setting | Default | What it does |
+|---|---|---|
+| `promptManager.insert.pasteIntoChatPanel` | `true` | Pre-fills the Copilot / Quick Chat input without submitting. |
+| `promptManager.insert.pasteIntoEditor` | `false` | **Writes into your active editor, replacing the selection.** Off unless you ask for it. |
+
+The second guarantee is that a prompt never eats the code it quotes. If a snippet contains
+`{{selection}}`, nothing writes into the editor that selection came from — not the editor
+paste, not `pasteIntoEditor`, whatever your settings say. You get the prompt on the
+clipboard and a message saying why, instead of your function replaced by a prompt about
+your function.
+
+Set both toggles from **AI Prompt File Manager: Configure Insert Behavior...**, or in
+Settings. For a chat panel that cannot be typed into, set
+`promptManager.insert.focusCommand` (for example `claude-vscode.focus` or
 `antigravity.panel.focus`) to focus its input so you can paste immediately.
+
+`promptManager.insert.strategy`, the old ordered list of raw command ids, is deprecated. A
+value you already set still wins so nothing changes under you; running **Configure Insert
+Behavior...** clears it and moves you to the toggles.
 
 One caveat the notification wording reflects: a chat command with no chat provider
 installed resolves successfully while doing nothing, and that is not detectable. The
@@ -106,7 +117,9 @@ was inserted.
 | `promptManager.maxFileSizeKb` | `512` | Refuse to read snippets larger than this. |
 | `promptManager.quickPick.showPreview` | `true` | Preview the highlighted snippet in the Quick Pick. |
 | `promptManager.macros.enabled` | `true` | Expand `{{selection}}`, `{{active_file}}` and `{{clipboard}}` in snippet text. |
-| `promptManager.insert.strategy` | chat only | Ordered command ids tried after copying. Commands that write into a document are skipped for the editor a `{{selection}}` came from. |
+| `promptManager.insert.pasteIntoChatPanel` | `true` | Pre-fill the Copilot / Quick Chat input after copying. |
+| `promptManager.insert.pasteIntoEditor` | `false` | Write into the active editor, replacing its selection. Never applies to the editor a `{{selection}}` was read from. |
+| `promptManager.insert.strategy` | *(unset)* | **Deprecated** ordered list of raw command ids. Still honoured while set. |
 | `promptManager.insert.focusCommand` | *(empty)* | Command that focuses a chat input when nothing could insert. |
 | `promptManager.insert.treatAsSnippet` | `false` | Interpret `$1` / `${1:name}` as tabstops when inserting into an editor. |
 | `promptManager.insert.notification` | `statusBar` | `statusBar`, `toast` or `none`. |

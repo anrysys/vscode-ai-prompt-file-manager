@@ -1,9 +1,16 @@
 import * as vscode from 'vscode';
-import { EXT_NS } from '../constants';
+import { EXT_NS, PASTE_ACTION } from '../constants';
+import {
+    CHAT_PANEL_COMMANDS,
+    EDITOR_COMMANDS,
+    planStrategy,
+    type InsertToggles,
+} from '../insert/inserter';
 
 export type NotificationStyle = 'statusBar' | 'toast' | 'none';
 
 export interface InsertConfig {
+    /** Command ids derived from the toggles, or a still-set legacy list. */
     readonly strategy: readonly string[];
     readonly focusCommand: string;
     readonly treatAsSnippet: boolean;
@@ -78,12 +85,32 @@ export function getWorkspacePath(resource: vscode.Uri): string {
     return section(resource).get<string>('workspace.path', '.vscode/prompts').trim();
 }
 
+/**
+ * The pre-0.1.11 setting, honoured while it is still set.
+ *
+ * Silently dropping someone's ordered command list on upgrade would change what their
+ * keystroke does without telling them, so an explicit value still wins. It is marked
+ * deprecated in the manifest, and **Configure Insert Behavior...** clears it.
+ */
+function legacyStrategy(cfg: vscode.WorkspaceConfiguration): string[] | undefined {
+    const inspected = cfg.inspect<string[]>('insert.strategy');
+    const explicit =
+        inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+    if (!explicit) {
+        return undefined;
+    }
+    const cleaned = explicit.map((id) => id.trim()).filter((id) => id.length > 0);
+    return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export function getInsertConfig(): InsertConfig {
     const cfg = section();
-    const strategy = cfg
-        .get<string[]>('insert.strategy', [])
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0);
+    const strategy =
+        legacyStrategy(cfg) ??
+        planStrategy({
+            pasteIntoChatPanel: cfg.get<boolean>('insert.pasteIntoChatPanel', true),
+            pasteIntoEditor: cfg.get<boolean>('insert.pasteIntoEditor', false),
+        });
     const notification = cfg.get<NotificationStyle>('insert.notification', 'statusBar');
     return {
         strategy,
@@ -109,12 +136,45 @@ export function getObsidianConfig(): ObsidianConfig {
     };
 }
 
-export async function updateInsertStrategy(strategy: string[]): Promise<void> {
-    await section().update(
-        'insert.strategy',
-        strategy,
+/**
+ * Writes the two toggles and clears the deprecated command list in the same breath, so a
+ * user who configures the behaviour once stops being governed by a setting they no longer
+ * see in the UI.
+ */
+export async function updateInsertToggles(toggles: InsertToggles): Promise<void> {
+    const cfg = section();
+    await cfg.update(
+        'insert.pasteIntoChatPanel',
+        toggles.pasteIntoChatPanel,
         vscode.ConfigurationTarget.Global,
     );
+    await cfg.update(
+        'insert.pasteIntoEditor',
+        toggles.pasteIntoEditor,
+        vscode.ConfigurationTarget.Global,
+    );
+    if (legacyStrategy(cfg)) {
+        await cfg.update('insert.strategy', undefined, vscode.ConfigurationTarget.Global);
+        await cfg.update('insert.strategy', undefined, vscode.ConfigurationTarget.Workspace);
+    }
+}
+
+/** The toggles as they stand, with the deprecated list reflected as best it can be. */
+export function getInsertToggles(): InsertToggles {
+    const cfg = section();
+    const legacy = legacyStrategy(cfg);
+    if (legacy) {
+        return {
+            pasteIntoChatPanel: legacy.some((id) => CHAT_PANEL_COMMANDS.includes(id)),
+            pasteIntoEditor: legacy.some(
+                (id) => EDITOR_COMMANDS.includes(id) || id === PASTE_ACTION,
+            ),
+        };
+    }
+    return {
+        pasteIntoChatPanel: cfg.get<boolean>('insert.pasteIntoChatPanel', true),
+        pasteIntoEditor: cfg.get<boolean>('insert.pasteIntoEditor', false),
+    };
 }
 
 /** Settings that change which directories are scanned, and so require a rebuild. */

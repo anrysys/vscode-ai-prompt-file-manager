@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -135,7 +135,7 @@
       },
       {
         "command": "promptManager.configureInsertStrategy",
-        "title": "Configure Insert Strategy...",
+        "title": "Configure Insert Behavior...",
         "category": "AI Prompt File Manager",
         "icon": "$(gear)"
       }
@@ -352,16 +352,27 @@
           "scope": "window",
           "description": "Read the highlighted snippet on demand to show a short preview in the Quick Pick."
         },
+        "promptManager.insert.pasteIntoChatPanel": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Attempts to pre-fill the VS Code Copilot / Quick Chat input box.\n\nThe text is placed in the input without being submitted, so you can still edit it. Chat panels that render as webviews — Claude Code, Antigravity and similar — cannot be typed into by any extension; for those, the snippet stays on the clipboard and `#promptManager.insert.focusCommand#` can focus the input so `Ctrl+V` is one keystroke away."
+        },
+        "promptManager.insert.pasteIntoEditor": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "markdownDescription": "\u26a0\ufe0f **Warning:** If enabled, this replaces the currently selected text in your active code editor.\n\nLeave this off unless you actually want prompts written into your files. A snippet that quotes `{{selection}}` is never written back over that selection even with this on — the snippet stays on the clipboard instead, and the status bar says why."
+        },
         "promptManager.insert.strategy": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "default": [
-            "workbench.action.chat.open"
-          ],
+          "default": [],
           "scope": "window",
-          "markdownDescription": "Ordered list of command ids tried after the snippet is copied to the clipboard. The first command that runs without throwing wins; otherwise the snippet simply stays on the clipboard.\n\n**Commands that genuinely carry text**\n- `workbench.action.chat.open` — prefills the chat input without submitting (`isPartialQuery`). Needs a chat provider; with none installed it resolves silently and does nothing.\n- `workbench.action.openQuickChat` / `workbench.action.quickchat.toggle` — prefills Quick Chat.\n- `editor.action.clipboardPasteAction` — pastes into a focused **text editor** only. It cannot paste into chat webviews.\n- `editor.insertText` — provided by this extension: inserts at the cursor of the active text editor.\n\n**Not usable here:** `workbench.action.chat.openInSidebar` (only moves the chat panel, takes no text), `claude-vscode.focus` and `antigravity.insertSnippet` (they ignore arguments). Use `#promptManager.insert.focusCommand#` for those instead.\n\n**Your code is never overwritten by a prompt:** when a snippet quotes `{{selection}}`, the commands that write into a document — `editor.insertText` and `editor.action.clipboardPasteAction` — are skipped for the editor that selection came from, and the snippet stays on the clipboard.\n\nRun **AI Prompt File Manager: Configure Insert Strategy...** to pick from the commands actually available in this window."
+          "markdownDeprecationMessage": "**Deprecated.** Use `#promptManager.insert.pasteIntoChatPanel#` and `#promptManager.insert.pasteIntoEditor#` instead. A value set here still wins, so nothing changes until you remove it; running **AI Prompt File Manager: Configure Insert Behavior...** clears it for you.",
+          "markdownDescription": "Ordered list of raw command ids tried after the snippet is copied. Superseded by the two toggles above, which cover the same ground without asking you to know which command ids carry text and which write into your code."
         },
         "promptManager.insert.focusCommand": {
           "type": "string",

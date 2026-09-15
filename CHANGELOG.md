@@ -2,6 +2,30 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.1.11] - 2026-09-15
+
+### Changed
+
+- **Insert behaviour is two checkboxes instead of a list of command ids.**
+  `promptManager.insert.pasteIntoChatPanel` (on by default) pre-fills the Copilot or Quick
+  Chat input; `promptManager.insert.pasteIntoEditor` (off by default) writes into the
+  active editor and says so in its description. The command ids each one stands for now
+  live in the extension, where they are covered by tests.
+- **Configure Insert Strategy...** is now **Configure Insert Behavior...** and offers the
+  same two choices in plain words, with a warning on the one that writes into code. It also
+  clears the deprecated setting for you.
+- `promptManager.insert.strategy` is deprecated. A value you have already set still wins, so
+  upgrading changes nothing silently; the settings UI now marks it as superseded.
+- The raw `editor.action.clipboardPasteAction` is no longer reachable from configuration at
+  all. It pasted into whichever editor held the focus, which is what made the old setting
+  able to overwrite the wrong file.
+
+### Unchanged
+
+- The clipboard copy still happens first, unconditionally, whatever the toggles say.
+- The guard from 0.1.9 is intact: a snippet quoting `{{selection}}` is never written back
+  over that selection.
+
 ## [0.1.10] - 2026-09-15
 
 ### Fixed
