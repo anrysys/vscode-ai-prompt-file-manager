@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -358,8 +358,7 @@
             "type": "string"
           },
           "default": [
-            "workbench.action.chat.open",
-            "editor.action.clipboardPasteAction"
+            "workbench.action.chat.open"
           ],
           "scope": "window",
           "markdownDescription": "Ordered list of command ids tried after the snippet is copied to the clipboard. The first command that runs without throwing wins; otherwise the snippet simply stays on the clipboard.\n\n**Commands that genuinely carry text**\n- `workbench.action.chat.open` — prefills the chat input without submitting (`isPartialQuery`). Needs a chat provider; with none installed it resolves silently and does nothing.\n- `workbench.action.openQuickChat` / `workbench.action.quickchat.toggle` — prefills Quick Chat.\n- `editor.action.clipboardPasteAction` — pastes into a focused **text editor** only. It cannot paste into chat webviews.\n- `editor.insertText` — provided by this extension: inserts at the cursor of the active text editor.\n\n**Not usable here:** `workbench.action.chat.openInSidebar` (only moves the chat panel, takes no text), `claude-vscode.focus` and `antigravity.insertSnippet` (they ignore arguments). Use `#promptManager.insert.focusCommand#` for those instead.\n\nRun **AI Prompt File Manager: Configure Insert Strategy...** to pick from the commands actually available in this window."
