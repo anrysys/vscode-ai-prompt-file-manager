@@ -80,7 +80,7 @@ export function renderTooltipMarkdown(parts: TooltipParts): string {
     }
 
     sections.push(`\`${parts.fsPath}\``);
-    sections.push(`${formatBytes(parts.size)} · Click to insert, pencil to edit`);
+    sections.push(`${formatBytes(parts.size)} · Click to open, insert icon to paste`);
 
     return sections.join('\n\n');
 }

@@ -86,7 +86,7 @@ suite('renderTooltipMarkdown', () => {
         assert.ok(md.startsWith('```md\n# Review'), md);
         assert.ok(md.includes('`/home/anry/prompts/review.md`'));
         assert.ok(md.includes('2.0 KB'));
-        assert.ok(md.includes('Click to insert, pencil to edit'));
+        assert.ok(md.includes('Click to open, insert icon to paste'));
         assert.ok(!md.includes(TRUNCATION_NOTICE));
     });
 
