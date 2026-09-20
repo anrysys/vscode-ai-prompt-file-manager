@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { Cmd, ContextKey, ContextValue, VIEW_ID } from '../constants';
 import { SnippetRepository } from '../fs/repository';
 import { PromptTreeProvider } from '../tree/promptTreeProvider';
+import { uriOf } from '../tree/nodes';
 import { insertSnippetText } from '../insert/inserter';
 import { TOOLTIP_MAX_LINES, TRUNCATION_NOTICE } from '../tree/tooltip';
 import type { InsertConfig } from '../config/configuration';
@@ -76,7 +77,7 @@ suite('extension wiring', () => {
         const ext = vscode.extensions.getExtension(EXTENSION_ID);
         const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
         const grouped = menus
-            .filter((m: { group?: string }) => m.group?.startsWith('6_cutcopypaste'))
+            .filter((m: { group?: string }) => m.group?.startsWith('5_cutcopypaste'))
             .map((m: { command: string }) => m.command);
 
         assert.deepStrictEqual(
@@ -94,6 +95,71 @@ suite('extension wiring', () => {
             (m: { command: string }) => m.command === Cmd.pasteResource,
         );
         assert.ok(paste?.when?.includes(ContextKey.clipboardHasItems), paste?.when);
+    });
+
+    test('copy path sits between the clipboard verbs and rename, as it does in the Explorer', () => {
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
+
+        const grouped = menus
+            .filter((m: { group?: string }) => m.group?.startsWith('6_copypath'))
+            .map((m: { command: string }) => m.command);
+        assert.deepStrictEqual(
+            [...grouped].sort(),
+            [Cmd.copyPath, Cmd.copyRelativePath].sort(),
+        );
+
+        // VS Code sorts these groups lexicographically, so this ordering *is* the contract
+        // for how the menu renders -- '6_copypath' < '6_cutcopypaste' is exactly why the
+        // clipboard verbs had to move to 5_.
+        const order = [
+            ...new Set(
+                menus
+                    .map((m: { group?: string }) => m.group?.split('@')[0])
+                    .filter((g: string | undefined): g is string => Boolean(g)),
+            ),
+        ].sort();
+        assert.ok(
+            order.indexOf('5_cutcopypaste') < order.indexOf('6_copypath'),
+            `copy path must render below cut/copy/paste, got ${order.join(', ')}`,
+        );
+        assert.ok(
+            order.indexOf('6_copypath') < order.indexOf('7_modification'),
+            `copy path must render above rename/delete, got ${order.join(', ')}`,
+        );
+    });
+
+    test('Open in Integrated Terminal is offered on containers and never on a file', () => {
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
+        const find = (command: string) =>
+            menus.find((m: { command: string; group?: string }) => m.command === command);
+
+        // Compared against the known-good container clause rather than sniffing for
+        // substrings: New Folder is the entry that already means "roots and folders only".
+        assert.strictEqual(find(Cmd.openInTerminal)?.when, find(Cmd.newFolder)?.when);
+    });
+
+    test('the path commands are offered on every kind of row, roots included', () => {
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
+        const find = (command: string) =>
+            menus.find((m: { command: string }) => m.command === command);
+
+        assert.strictEqual(find(Cmd.copyPath)?.when, find(Cmd.revealInOS)?.when);
+        assert.strictEqual(find(Cmd.copyRelativePath)?.when, find(Cmd.revealInOS)?.when);
+    });
+
+    test('the path commands are hidden from the command palette', () => {
+        // They would run from the palette via the treeView.selection fallback, but that
+        // selection outlives the view losing focus, so they would copy rows nobody is
+        // looking at.
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const palette = ext?.packageJSON?.contributes?.menus?.commandPalette ?? [];
+        for (const id of [Cmd.copyPath, Cmd.copyRelativePath, Cmd.openInTerminal]) {
+            const entry = palette.find((m: { command: string }) => m.command === id);
+            assert.strictEqual(entry?.when, 'false', `${id} should need a row`);
+        }
     });
 
     test('the view id in package.json matches the one the provider registers under', () => {
@@ -217,6 +283,96 @@ suite('tree over a real directory', () => {
         const folder = (await provider.getChildren(roots[0])).find((c) => c.type === 'folder');
         assert.ok(folder);
         assert.strictEqual(folder.command, undefined);
+    });
+
+    test('Copy Path puts the absolute path of the clicked row on the clipboard', async () => {
+        const created = await repo.createSnippet(tempDir, 'copy-me.md', 'body');
+
+        const roots = await provider.getChildren();
+        const file = (await provider.getChildren(roots[0])).find((c) => c.type === 'file');
+        assert.ok(file);
+
+        await vscode.commands.executeCommand(Cmd.copyPath, file);
+        assert.strictEqual(await vscode.env.clipboard.readText(), created.fsPath);
+    });
+
+    test('Copy Relative Path is POSIX and relative to the prompt root', async () => {
+        await repo.createSnippet(
+            vscode.Uri.joinPath(tempDir, 'refactor'),
+            'rename.md',
+            'body',
+        );
+
+        const roots = await provider.getChildren();
+        const folder = (await provider.getChildren(roots[0])).find((c) => c.type === 'folder');
+        assert.ok(folder);
+        const nested = (await provider.getChildren(folder))[0];
+        assert.ok(nested);
+
+        await vscode.commands.executeCommand(Cmd.copyRelativePath, nested);
+        // Forward slashes on every platform, and no leading root segment.
+        assert.strictEqual(await vscode.env.clipboard.readText(), 'refactor/rename.md');
+    });
+
+    test('Copy Path keeps every selected row, including one nested in another', async () => {
+        // The read-only counterpart to the pruning that Delete relies on: three rows
+        // selected must be three lines copied, or the clipboard quietly lies.
+        await repo.createSnippet(vscode.Uri.joinPath(tempDir, 'group'), 'x.md', 'body');
+
+        const roots = await provider.getChildren();
+        const folder = (await provider.getChildren(roots[0])).find((c) => c.type === 'folder');
+        assert.ok(folder);
+        const child = (await provider.getChildren(folder))[0];
+        assert.ok(child);
+
+        await vscode.commands.executeCommand(Cmd.copyPath, folder, [folder, child]);
+        const lines = (await vscode.env.clipboard.readText()).split('\n');
+        assert.deepStrictEqual(lines, [uriOf(folder).fsPath, uriOf(child).fsPath]);
+    });
+
+    test('Open in Integrated Terminal opens a VS Code terminal, not an OS console', async () => {
+        await repo.createSnippet(vscode.Uri.joinPath(tempDir, 'shell-here'), 'x.md', 'body');
+
+        const roots = await provider.getChildren();
+        const folder = (await provider.getChildren(roots[0])).find(
+            (c) => c.type === 'folder' && c.entry.name === 'shell-here',
+        );
+        assert.ok(folder);
+
+        await vscode.commands.executeCommand(Cmd.openInTerminal, folder);
+
+        // Only createTerminal can produce a vscode.Terminal, so its presence here is the
+        // regression test for "never spawn an external console".
+        const terminal = vscode.window.terminals.find((t) => t.name === 'shell-here');
+        assert.ok(terminal, 'a terminal should exist for the folder');
+        try {
+            const { cwd } = terminal.creationOptions as vscode.TerminalOptions;
+            assert.ok(cwd instanceof vscode.Uri, 'cwd should be a Uri, so remotes resolve it');
+            assert.strictEqual(cwd.fsPath, uriOf(folder).fsPath);
+        } finally {
+            terminal.dispose();
+        }
+    });
+
+    test('Open in Integrated Terminal ignores files caught in a mixed selection', async () => {
+        await repo.createSnippet(tempDir, 'loose.md', 'body');
+        await repo.createSnippet(vscode.Uri.joinPath(tempDir, 'mixed'), 'x.md', 'body');
+
+        const children = await provider.getChildren((await provider.getChildren())[0]);
+        const folder = children.find((c) => c.type === 'folder' && c.entry.name === 'mixed');
+        const file = children.find((c) => c.type === 'file');
+        assert.ok(folder);
+        assert.ok(file);
+
+        const before = vscode.window.terminals.length;
+        await vscode.commands.executeCommand(Cmd.openInTerminal, folder, [folder, file]);
+
+        assert.strictEqual(
+            vscode.window.terminals.length,
+            before + 1,
+            'one terminal for the folder, none for the file',
+        );
+        vscode.window.terminals.find((t) => t.name === 'mixed')?.dispose();
     });
 
     test('a file row shows its name once, with no duplicated description', async () => {

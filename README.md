@@ -35,6 +35,9 @@ vault and the same files serve both tools.
   is suffixed `-2` instead, and deletions go to the OS trash.
 - **Drop files in** — drag a `.md` or `.txt` in from the Explorer or your desktop and it is
   copied into the prompt folder, never moved out of wherever it came from.
+- **Paths and terminals** — **Copy Path** and **Copy Relative Path** put a row's location on
+  the system clipboard, one line per selected row; **Open in Integrated Terminal** starts a
+  shell in a folder. All three work on files, folders and the scope rows themselves.
 - **Hover to preview** — hovering a snippet shows the start of its text, read on demand so
   that building the tree never touches file contents. Long prompts are clipped to 15 lines.
 - **Open in Obsidian** — jump from a snippet to the same file in your vault.
@@ -288,7 +291,9 @@ between them if you need both.
   and Paste, or Duplicate, instead.
 - The tree's Cut/Copy buffer is separate from the system clipboard and lasts for the
   window. That is deliberate: the system clipboard already carries snippet *text* for
-  pasting into a chat, and putting file paths there would overwrite it.
+  pasting into a chat, and moving a file around should not overwrite it. **Copy Path** and
+  **Copy Relative Path** are the exceptions, and only because a path is what you asked them
+  for — they will replace whatever the clipboard was holding.
 
 ## Requirements
 

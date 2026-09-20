@@ -1,7 +1,13 @@
 import * as vscode from 'vscode';
 import { dedupeByUri, pruneNested } from '../fs/boundary';
 import type { SnippetRoot } from '../model/snippet';
-import { targetDirectoryOf, type FileNode, type FolderNode, type PromptNode } from '../tree/nodes';
+import {
+    targetDirectoryOf,
+    uriOf,
+    type FileNode,
+    type FolderNode,
+    type PromptNode,
+} from '../tree/nodes';
 
 /** A node that names a resource on disk. Roots are configured directories, not resources. */
 export type ResourceNode = FolderNode | FileNode;
@@ -27,6 +33,25 @@ export function resolveSelection(
     // Pruning matters for every destructive verb: deleting a folder and a file inside it
     // would otherwise fail on the second item, which has already gone with the first.
     return pruneNested(dedupeByUri(resources, (n) => n.entry.uri), (n) => n.entry.uri);
+}
+
+/**
+ * The same rows, for commands that only *read* them.
+ *
+ * Two deliberate differences from `resolveSelection`. Roots stay in: a root names a real
+ * directory, so "where is this?" has an answer for it, even though nothing may be created,
+ * moved or deleted there by name. And nothing is pruned: dropping the child of a selected
+ * folder is right for a move, which would carry it along anyway, but a Copy Path that
+ * silently leaves out a row the user selected puts *wrong* text on the clipboard, and wrong
+ * is worse than long. The Explorer copies both paths too.
+ */
+export function resolveSelectionForReading(
+    node: PromptNode | undefined,
+    selection: readonly PromptNode[] | undefined,
+    treeView: vscode.TreeView<PromptNode>,
+): PromptNode[] {
+    // Deduplicated all the same: overlapping roots can surface one directory twice.
+    return dedupeByUri(pickBase(node, selection, treeView), uriOf);
 }
 
 function pickBase(

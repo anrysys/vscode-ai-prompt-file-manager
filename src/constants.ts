@@ -19,6 +19,12 @@ export const Cmd = {
     deleteSnippet: 'promptManager.deleteSnippet',
     openInObsidian: 'promptManager.openInObsidian',
     revealInOS: 'promptManager.revealInOS',
+    // Three "where does this live" commands, distinct from `copyToClipboard` (a snippet's
+    // *text*) and from `copyResource` (the tree's own cut/copy buffer). All three write the
+    // system clipboard, which the resource clipboard deliberately never does.
+    copyPath: 'promptManager.copyPath',
+    copyRelativePath: 'promptManager.copyRelativePath',
+    openInTerminal: 'promptManager.openInIntegratedTerminal',
     refresh: 'promptManager.refresh',
     openGlobalFolder: 'promptManager.openGlobalFolder',
     configureInsert: 'promptManager.configureInsertStrategy',

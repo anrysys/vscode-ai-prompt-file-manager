@@ -122,6 +122,21 @@
         "category": "AI Prompt File Manager"
       },
       {
+        "command": "promptManager.copyPath",
+        "title": "Copy Path",
+        "category": "AI Prompt File Manager"
+      },
+      {
+        "command": "promptManager.copyRelativePath",
+        "title": "Copy Relative Path",
+        "category": "AI Prompt File Manager"
+      },
+      {
+        "command": "promptManager.openInIntegratedTerminal",
+        "title": "Open in Integrated Terminal",
+        "category": "AI Prompt File Manager"
+      },
+      {
         "command": "promptManager.refresh",
         "title": "Refresh",
         "category": "AI Prompt File Manager",
@@ -193,6 +208,18 @@
         },
         {
           "command": "promptManager.revealInOS",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.copyRelativePath",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.openInIntegratedTerminal",
           "when": "false"
         },
         {
@@ -281,6 +308,21 @@
           "group": "3_open@3"
         },
         {
+          "command": "promptManager.openInIntegratedTerminal",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder)$/",
+          "group": "3_open@4"
+        },
+        {
+          "command": "promptManager.copyPath",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder|Root\\.(global|workspace))$/",
+          "group": "6_copypath@1"
+        },
+        {
+          "command": "promptManager.copyRelativePath",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder|Root\\.(global|workspace))$/",
+          "group": "6_copypath@2"
+        },
+        {
           "command": "promptManager.renameSnippet",
           "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
           "group": "7_modification@1"
@@ -293,22 +335,22 @@
         {
           "command": "promptManager.cutResource",
           "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
-          "group": "6_cutcopypaste@1"
+          "group": "5_cutcopypaste@1"
         },
         {
           "command": "promptManager.copyResource",
           "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
-          "group": "6_cutcopypaste@2"
+          "group": "5_cutcopypaste@2"
         },
         {
           "command": "promptManager.pasteResource",
           "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder|File)$/ && promptManager.clipboardHasItems",
-          "group": "6_cutcopypaste@3"
+          "group": "5_cutcopypaste@3"
         },
         {
           "command": "promptManager.duplicateResource",
           "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
-          "group": "6_cutcopypaste@4"
+          "group": "5_cutcopypaste@4"
         }
       ],
       "explorer/context": [

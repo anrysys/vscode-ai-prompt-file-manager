@@ -2,8 +2,8 @@ import * as assert from 'node:assert';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { resolveSelection } from '../commands/selection';
-import { FileNode, FolderNode, RootNode, type PromptNode } from '../tree/nodes';
+import { resolveSelection, resolveSelectionForReading } from '../commands/selection';
+import { FileNode, FolderNode, RootNode, uriOf, type PromptNode } from '../tree/nodes';
 import type { SnippetRoot } from '../model/snippet';
 
 /**
@@ -95,6 +95,47 @@ suite('resolveSelection', () => {
         assert.deepStrictEqual(
             items.map((item) => item.entry.name),
             ['src'],
+        );
+    });
+});
+
+/**
+ * The read-only sibling. Its two differences from `resolveSelection` are the whole point of
+ * it existing, so they are pinned here next to the tests that assert the opposite.
+ */
+suite('resolveSelectionForReading', () => {
+    test('keeps a file inside a selected folder, because copying a path is not a move', () => {
+        // The mirror image of 'a file inside a selected folder is not acted on twice'.
+        // Pruning there stops a double delete; pruning here would put two rows on the
+        // clipboard when the user selected three, with nothing to say a line went missing.
+        const parent = folder('src');
+        const child = file('src/one.md');
+        const items = resolveSelectionForReading(parent, [parent, child], empty);
+        assert.deepStrictEqual(
+            items.map((item) => uriOf(item).fsPath),
+            [parent.entry.uri.fsPath, child.entry.uri.fsPath],
+        );
+    });
+
+    test('a root is a real directory, so it is not thrown away', () => {
+        const rootNode = new RootNode(root, false);
+        const items = resolveSelectionForReading(rootNode, [rootNode], empty);
+        assert.strictEqual(items.length, 1);
+        assert.strictEqual(uriOf(items[0]!).fsPath, base.fsPath);
+    });
+
+    test('the same row selected twice is copied once', () => {
+        // Overlapping roots can surface one directory under two rows.
+        const items = resolveSelectionForReading(undefined, [file('a.md'), file('a.md')], empty);
+        assert.strictEqual(items.length, 1);
+    });
+
+    test('still acts on the clicked row alone when it sits outside the selection', () => {
+        const other = file('other.md');
+        const items = resolveSelectionForReading(other, [file('a.md'), file('b.md')], empty);
+        assert.deepStrictEqual(
+            items.map((item) => uriOf(item).fsPath),
+            [other.entry.uri.fsPath],
         );
     });
 });

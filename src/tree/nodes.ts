@@ -77,9 +77,19 @@ export function isFileNode(node: PromptNode): node is FileNode {
     return node.type === 'file';
 }
 
+/**
+ * The resource a node names on disk: a root's configured directory, or an entry's own path.
+ *
+ * One definition. The same ternary had already been written out in two other places, and a
+ * third copy is how they start to disagree.
+ */
+export function uriOf(node: PromptNode): vscode.Uri {
+    return node.type === 'root' ? node.root.uri : node.entry.uri;
+}
+
 /** The directory a "new snippet here" action should target for a given node. */
 export function targetDirectoryOf(node: PromptNode): vscode.Uri {
-    return node.type === 'root' ? node.root.uri : node.entry.uri;
+    return uriOf(node);
 }
 
 export function rootOf(node: PromptNode): SnippetRoot {
