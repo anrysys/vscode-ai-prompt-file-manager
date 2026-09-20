@@ -2,6 +2,33 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.3.0] - 2026-09-20
+
+### Added
+
+- **Paths can be copied straight out of the tree.** **Copy Path** gives the absolute location
+  in your system's own separators, ready to paste into a shell; **Copy Relative Path** gives
+  the path from the prompt folder down, always with forward slashes, so it still means
+  something on the next machine the prompt travels to. Both work on files, folders and the
+  Global and Workspace rows themselves. Select several rows and you get one path per line, in
+  the order the tree shows them — including a file and the folder it sits in, which are two
+  separate answers to "where is this?" and are copied as two.
+- **Folders open in a terminal.** **Open in Integrated Terminal** starts a shell already in
+  the folder you right-clicked. It is VS Code's own terminal rather than a system console, so
+  it behaves the same on a remote, WSL or container window, where the folder does not exist
+  on your local disk at all. A scope folder that has not been created yet is created first,
+  rather than handing you a shell that cannot start. Selecting a file alongside a folder opens
+  one terminal, for the folder.
+
+### Changed
+
+- **Copy Path is the one tree command that takes over the system clipboard.** Cut and Copy
+  still keep their own buffer, so rearranging files cannot overwrite a prompt on its way to a
+  chat — but a path is exactly what Copy Path was asked for, so it replaces whatever was
+  there.
+- The right-click menu now orders its groups the way the Explorer does: Cut/Copy/Paste and
+  Duplicate, then the two path commands, then Rename and Delete.
+
 ## [0.2.1] - 2026-09-20
 
 ### Changed
