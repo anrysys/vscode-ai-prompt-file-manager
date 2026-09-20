@@ -2,10 +2,16 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
-## [Unreleased]
+## [0.2.0] - 2026-09-20
 
 ### Added
 
+- **The Quick Pick learns which prompts you actually use.** The ones you reach for most are
+  listed under a **Frequently used** group at the top, across both scopes, so the prompt you
+  want is usually the first thing you see. Counts are local to the machine and never synced —
+  which prompts someone reaches for is a habit formed at one keyboard, not a setting worth
+  replicating. `promptManager.quickPick.frequentCount` sets how many to show (5 by default,
+  0 hides the group entirely). A prompt you have never used is never padded into the group.
 - **The tree view is now a file manager.** Drag snippets and folders onto any folder, at any
   depth, including between the Global and Workspace scopes. Select several rows and move,
   copy or delete them in one gesture. **Cut**, **Copy**, **Paste** and **Duplicate** joined
@@ -21,7 +27,7 @@ All notable changes to the AI Prompt File Manager extension are documented in th
 - A name clash on a move, copy or import suffixes the incoming item `-2` rather than
   overwriting, matching what creating a snippet has always done. Deletions still go to the
   OS trash, and a multiple delete lists every full path before it asks.
-- Usage counts now follow a snippet through a move, a drag or a paste, as they already did
+- Usage counts follow a snippet through a move, a drag or a paste, as they already did
   through a rename — including when a clash renamed the file on arrival.
 
 ### Fixed

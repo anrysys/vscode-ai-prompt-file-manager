@@ -12,6 +12,8 @@ vault and the same files serve both tools.
 
 - **Quick insert** — `Ctrl+Alt+P` opens a searchable list of every snippet across both
   scopes, with scope badges and subfolder paths. Picking one copies it to the clipboard.
+- **Frequently used first** — the prompts you reach for most are grouped at the top of that
+  list, across both scopes. Counts stay on this machine and are never synced.
 - **Two scopes** — *Global* snippets follow you between projects; *Workspace* snippets live
   in the repo (`.vscode/prompts` by default) and can be committed with it.
 - **Nested folders** — organise snippets into subfolders; they appear as groups in the tree
