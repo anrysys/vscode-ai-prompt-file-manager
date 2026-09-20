@@ -2,6 +2,18 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.2.1] - 2026-09-20
+
+### Changed
+
+- **The Marketplace icon is calmer and larger.** The mark now fills about 72% of the plate
+  instead of 55%, so it reads at the ~42px the Extensions list gives it. The neon green
+  and yellow-amber are gone: the bubble is a restrained emerald, the bolt a proper orange,
+  and the flat black plate is a slate-charcoal gradient that reads as a surface rather than
+  a hole on both light and dark Marketplace themes. The Activity Bar icon is unchanged — VS
+  Code renders it as a single-colour mask at codicon size, so neither the colour nor the
+  scale change applies there.
+
 ## [0.2.0] - 2026-09-20
 
 ### Added
