@@ -22,6 +22,12 @@ export const Cmd = {
     refresh: 'promptManager.refresh',
     openGlobalFolder: 'promptManager.openGlobalFolder',
     configureInsert: 'promptManager.configureInsertStrategy',
+    // Resource-level clipboard, distinct from `copyToClipboard`, which copies a snippet's
+    // *text*. The two would be indistinguishable in the palette under the same verb.
+    cutResource: 'promptManager.cutResource',
+    copyResource: 'promptManager.copyResource',
+    pasteResource: 'promptManager.pasteResource',
+    duplicateResource: 'promptManager.duplicateResource',
 } as const;
 
 /** Values must match the `viewItem` tests in package.json's `view/item/context` menus. */
@@ -30,6 +36,24 @@ export const ContextValue = {
     rootWorkspace: 'promptRoot.workspace',
     folder: 'promptFolder',
     file: 'promptFile',
+} as const;
+
+/**
+ * VS Code's convention for a tree's own drag payload is
+ * `application/vnd.code.tree.<view id, lowercased>`. Derived rather than written out, so
+ * renaming VIEW_ID cannot silently stop drops from being recognised.
+ */
+export const TREE_MIME_TYPE = `application/vnd.code.tree.${VIEW_ID.toLowerCase()}`;
+
+/** Mime type carrying dropped resources from outside this tree. */
+export const URI_LIST_MIME_TYPE = 'text/uri-list';
+
+/** Mime type carrying dropped OS files, which may have no path at all on web. */
+export const FILES_MIME_TYPE = 'files';
+
+/** Context keys pushed with `setContext`; mirrored in package.json `when` clauses. */
+export const ContextKey = {
+    clipboardHasItems: 'promptManager.clipboardHasItems',
 } as const;
 
 /**

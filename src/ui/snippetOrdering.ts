@@ -1,5 +1,6 @@
 import { uriKey } from '../fs/paths';
 import type { SnippetFile, SnippetRoot } from '../model/snippet';
+import type { UsageLookup } from '../state/usageTracker';
 
 /**
  * Workspace roots first: they are the more specific scope, so they are the more likely
@@ -43,4 +44,34 @@ export function prepareGroup(
     seen: Set<string>,
 ): SnippetFile[] {
     return dedupeByPath(files, seen).sort(compareByRelativePath);
+}
+
+/**
+ * Most-used first, falling back to the alphabetical order so that files nobody has used --
+ * all tied on zero -- keep exactly the order they would have had without this feature.
+ */
+export function compareByUsageThenPath(usage: UsageLookup) {
+    return (a: SnippetFile, b: SnippetFile): number =>
+        usage(b) - usage(a) || compareByRelativePath(a, b);
+}
+
+/**
+ * The snippets worth floating above the per-root groups.
+ *
+ * Files never used are excluded rather than padding the group out to `limit`: a "Frequently
+ * used" heading over something the user has never opened is a lie, and it would push the real
+ * groups down for nothing.
+ */
+export function pickFrequent(
+    files: readonly SnippetFile[],
+    usage: UsageLookup,
+    limit: number,
+): SnippetFile[] {
+    if (limit <= 0) {
+        return [];
+    }
+    return files
+        .filter((file) => usage(file) > 0)
+        .sort(compareByUsageThenPath(usage))
+        .slice(0, limit);
 }

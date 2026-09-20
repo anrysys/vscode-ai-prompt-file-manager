@@ -68,6 +68,12 @@ export function getQuickPickShowPreview(): boolean {
     return section().get<boolean>('quickPick.showPreview', true);
 }
 
+/** 0 hides the "Frequently used" group entirely. */
+export function getQuickPickFrequentCount(): number {
+    const value = section().get<number>('quickPick.frequentCount', 5);
+    return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), 0), 20) : 5;
+}
+
 export function isGlobalEnabled(): boolean {
     return section().get<boolean>('global.enabled', true);
 }

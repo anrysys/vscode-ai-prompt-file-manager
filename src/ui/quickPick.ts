@@ -1,10 +1,12 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { PREVIEW_DEBOUNCE_MS } from '../constants';
-import { getQuickPickShowPreview } from '../config/configuration';
+import { getQuickPickFrequentCount, getQuickPickShowPreview } from '../config/configuration';
+import { uriKey } from '../fs/paths';
 import type { SnippetRepository } from '../fs/repository';
 import type { SnippetFile, SnippetRoot } from '../model/snippet';
-import { orderRootsForPicker, prepareGroup } from './snippetOrdering';
+import type { PickerUsage } from '../state/usageTracker';
+import { orderRootsForPicker, pickFrequent, prepareGroup } from './snippetOrdering';
 
 interface SnippetPickItem extends vscode.QuickPickItem {
     readonly file: SnippetFile;
@@ -52,6 +54,7 @@ function firstLines(text: string, limit = 120): string {
  */
 export async function pickSnippet(
     repo: SnippetRepository,
+    usage?: PickerUsage,
 ): Promise<SnippetFile | undefined> {
     const quickPick = vscode.window.createQuickPick<PickEntry>();
     quickPick.placeholder = 'Search prompt snippets...';
@@ -66,7 +69,7 @@ export async function pickSnippet(
     let previewGeneration = 0;
 
     try {
-        const items = await buildItems(repo, cancellation.token);
+        const items = await buildItems(repo, cancellation.token, usage);
         quickPick.items = items;
         quickPick.busy = false;
 
@@ -121,25 +124,59 @@ export async function pickSnippet(
 }
 
 /**
- * Workspace roots come first because they are the more specific scope, with a separator
- * per root. Sorting stays *within* each root so the grouping the separators describe
- * remains true.
+ * Two passes, because the "Frequently used" group spans scopes: every root has to be scanned
+ * before the top group can be chosen. Within the per-root groups the order is still alphabetical
+ * and still dedupes workspace-first, so the grouping the separators describe remains true.
  */
 async function buildItems(
     repo: SnippetRepository,
     token: vscode.CancellationToken,
+    usage?: PickerUsage,
 ): Promise<PickEntry[]> {
-    const entries: PickEntry[] = [];
+    // Doubles as the set of live snippet keys once every root has been walked.
     const seen = new Set<string>();
+    const groups: { root: SnippetRoot; files: SnippetFile[] }[] = [];
+    const scannedRoots: vscode.Uri[] = [];
 
     for (const root of orderRootsForPicker(repo.getRoots())) {
         const files = await repo.listFilesRecursive(root, token);
+        scannedRoots.push(root.uri);
         const group = prepareGroup(files, seen);
-        if (group.length === 0) {
+        if (group.length > 0) {
+            groups.push({ root, files: group });
+        }
+    }
+
+    // Only once every root was walked to completion: a cancelled scan has not proved that the
+    // snippets it did not reach are gone.
+    if (usage && !token.isCancellationRequested) {
+        void usage.pruneTo(seen, scannedRoots);
+    }
+
+    const entries: PickEntry[] = [];
+    const frequent = usage
+        ? pickFrequent(
+            groups.flatMap((group) => group.files),
+            usage.lookup,
+            getQuickPickFrequentCount(),
+        )
+        : [];
+
+    if (frequent.length > 0) {
+        entries.push({ label: 'Frequently used', kind: vscode.QuickPickItemKind.Separator });
+        entries.push(...frequent.map(toItem));
+    }
+
+    // Promoted snippets are listed once, at the top, rather than twice in the same picker.
+    const promoted = new Set(frequent.map((file) => uriKey(file.uri)));
+    for (const { root, files } of groups) {
+        const rest =
+            promoted.size > 0 ? files.filter((file) => !promoted.has(uriKey(file.uri))) : files;
+        if (rest.length === 0) {
             continue;
         }
         entries.push({ label: root.label, kind: vscode.QuickPickItemKind.Separator });
-        entries.push(...group.map(toItem));
+        entries.push(...rest.map(toItem));
     }
     return entries;
 }

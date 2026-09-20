@@ -4,6 +4,7 @@ import { SnippetTooLargeError } from '../fs/repository';
 import { formatBytes } from '../fs/paths';
 import type { InsertConfig } from '../config/configuration';
 import type { InsertOutcome } from '../insert/inserter';
+import { describeTransfer, isTransferEmpty, type TransferResult } from '../fs/transfer';
 
 /**
  * A command resolving without throwing is not proof that it inserted anything -- a chat
@@ -69,6 +70,10 @@ export function notifyError(err: unknown, context: string): void {
             void vscode.window.showErrorMessage(`${context}: permission denied.`);
             return;
         }
+        if (err.code === 'FileExists') {
+            void vscode.window.showWarningMessage(`${context}: that name is already taken.`);
+            return;
+        }
     }
 
     const message = err instanceof Error ? err.message : String(err);
@@ -93,4 +98,33 @@ export function guard<A extends unknown[]>(
             notifyError(err, context);
         }
     };
+}
+
+/**
+ * One message for one gesture. A drop of twenty items that half-succeeds must not produce
+ * twenty dialogs, so the whole batch is summarised in a single line.
+ */
+export function notifyTransfer(result: TransferResult): void {
+    if (isTransferEmpty(result)) {
+        return;
+    }
+    const message = describeTransfer(result);
+    log.info(message);
+
+    for (const failure of result.failed) {
+        log.error(
+            failure.error instanceof Error ? failure.error : new Error(String(failure.error)),
+        );
+    }
+
+    if (result.failed.length > 0) {
+        void vscode.window.showErrorMessage(message);
+        return;
+    }
+    if (result.rejected.length > 0 && result.succeeded.length === 0) {
+        // Nothing happened and the user asked for something: say why, but it is not an error.
+        void vscode.window.showWarningMessage(message);
+        return;
+    }
+    vscode.window.setStatusBarMessage(`$(files) ${message}`, 3000);
 }

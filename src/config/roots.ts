@@ -2,7 +2,7 @@ import * as os from 'node:os';
 import * as vscode from 'vscode';
 import type { SnippetRoot } from '../model/snippet';
 import { log } from '../log';
-import { resolveToUri, uriKey, type ExpandContext } from '../fs/paths';
+import { isKeyUnder, resolveToUri, uriKey, type ExpandContext } from '../fs/paths';
 import {
     getGlobalPath,
     getWorkspacePath,
@@ -98,7 +98,7 @@ export function findRootFor(
     let best: SnippetRoot | undefined;
     for (const root of roots) {
         const key = uriKey(root.uri);
-        if (target === key || target.startsWith(`${key}/`) || target.startsWith(`${key}\\`)) {
+        if (isKeyUnder(target, key)) {
             // Prefer the most specific root when one is nested inside another.
             if (!best || key.length > uriKey(best.uri).length) {
                 best = root;

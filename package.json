@@ -4,7 +4,7 @@
   "icon": "icon.png",
   "description": "Store prompts as plain .md/.txt files and insert them into AI chat panels.",
   "publisher": "anrysys",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -138,6 +138,27 @@
         "title": "Configure Insert Behavior...",
         "category": "AI Prompt File Manager",
         "icon": "$(gear)"
+      },
+      {
+        "command": "promptManager.cutResource",
+        "title": "Cut",
+        "category": "AI Prompt File Manager"
+      },
+      {
+        "command": "promptManager.copyResource",
+        "title": "Copy",
+        "category": "AI Prompt File Manager"
+      },
+      {
+        "command": "promptManager.pasteResource",
+        "title": "Paste",
+        "category": "AI Prompt File Manager"
+      },
+      {
+        "command": "promptManager.duplicateResource",
+        "title": "Duplicate",
+        "category": "AI Prompt File Manager",
+        "icon": "$(files)"
       }
     ],
     "menus": {
@@ -173,6 +194,22 @@
         {
           "command": "promptManager.revealInOS",
           "when": "false"
+        },
+        {
+          "command": "promptManager.cutResource",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.copyResource",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.duplicateResource",
+          "when": "false"
+        },
+        {
+          "command": "promptManager.pasteResource",
+          "when": "promptManager.clipboardHasItems"
         }
       ],
       "view/title": [
@@ -252,6 +289,26 @@
           "command": "promptManager.deleteSnippet",
           "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
           "group": "7_modification@2"
+        },
+        {
+          "command": "promptManager.cutResource",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
+          "group": "6_cutcopypaste@1"
+        },
+        {
+          "command": "promptManager.copyResource",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
+          "group": "6_cutcopypaste@2"
+        },
+        {
+          "command": "promptManager.pasteResource",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(Root\\.(global|workspace)|Folder|File)$/ && promptManager.clipboardHasItems",
+          "group": "6_cutcopypaste@3"
+        },
+        {
+          "command": "promptManager.duplicateResource",
+          "when": "view == promptManager.view && viewItem =~ /^prompt(File|Folder)$/",
+          "group": "6_cutcopypaste@4"
         }
       ],
       "explorer/context": [
@@ -267,6 +324,35 @@
         "command": "promptManager.insertSnippet",
         "key": "ctrl+alt+p",
         "mac": "cmd+alt+p"
+      },
+      {
+        "command": "promptManager.copyResource",
+        "key": "ctrl+c",
+        "mac": "cmd+c",
+        "when": "focusedView == promptManager.view"
+      },
+      {
+        "command": "promptManager.cutResource",
+        "key": "ctrl+x",
+        "mac": "cmd+x",
+        "when": "focusedView == promptManager.view"
+      },
+      {
+        "command": "promptManager.pasteResource",
+        "key": "ctrl+v",
+        "mac": "cmd+v",
+        "when": "focusedView == promptManager.view && promptManager.clipboardHasItems"
+      },
+      {
+        "command": "promptManager.renameSnippet",
+        "key": "f2",
+        "when": "focusedView == promptManager.view"
+      },
+      {
+        "command": "promptManager.deleteSnippet",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "focusedView == promptManager.view"
       }
     ],
     "configuration": {
@@ -352,6 +438,14 @@
           "scope": "window",
           "description": "Read the highlighted snippet on demand to show a short preview in the Quick Pick."
         },
+        "promptManager.quickPick.frequentCount": {
+          "type": "integer",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 20,
+          "scope": "window",
+          "description": "How many of your most-used snippets to list under \"Frequently used\" at the top of the Quick Pick. Set to 0 to hide the group."
+        },
         "promptManager.insert.pasteIntoChatPanel": {
           "type": "boolean",
           "default": true,
@@ -362,7 +456,7 @@
           "type": "boolean",
           "default": false,
           "scope": "window",
-          "markdownDescription": "\u26a0\ufe0f **Warning:** If enabled, this replaces the currently selected text in your active code editor.\n\nLeave this off unless you actually want prompts written into your files. A snippet that quotes `{{selection}}` is never written back over that selection even with this on — the snippet stays on the clipboard instead, and the status bar says why."
+          "markdownDescription": "⚠️ **Warning:** If enabled, this replaces the currently selected text in your active code editor.\n\nLeave this off unless you actually want prompts written into your files. A snippet that quotes `{{selection}}` is never written back over that selection even with this on — the snippet stays on the clipboard instead, and the status bar says why."
         },
         "promptManager.insert.strategy": {
           "type": "array",

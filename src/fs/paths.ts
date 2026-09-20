@@ -88,6 +88,27 @@ export function uriKey(uri: vscode.Uri): string {
 }
 
 /**
+ * True when `key` is `prefix` itself or sits beneath it. Both arguments must come from
+ * `uriKey`, which has already normalised separators and stripped trailing ones -- that is
+ * what makes testing a single `path.sep` sufficient here.
+ *
+ * Containment used to be reimplemented in three places (usage pruning, root lookup, tree
+ * search), and the copies disagreed about separators. This is the one definition.
+ */
+export function isKeyUnder(key: string, prefix: string): boolean {
+    return key === prefix || key.startsWith(prefix + path.sep);
+}
+
+export function isSameUri(a: vscode.Uri, b: vscode.Uri): boolean {
+    return uriKey(a) === uriKey(b);
+}
+
+/** True when `child` is `ancestor` or lives anywhere beneath it. */
+export function isUriUnder(child: vscode.Uri, ancestor: vscode.Uri): boolean {
+    return isKeyUnder(uriKey(child), uriKey(ancestor));
+}
+
+/**
  * Removes a known snippet extension, leaving the rest of the name untouched.
  *
  * A name that is nothing but an extension is returned as-is rather than collapsing to an

@@ -26,6 +26,13 @@ vault and the same files serve both tools.
 - **Tree view** — an AI Prompt File Manager container in the Activity Bar with create, rename,
   delete and reveal actions. Clicking a row opens the snippet for editing; the insert icon
   on the right of the row sends it to the chat.
+- **A real file manager** — drag snippets and folders between folders, across scopes, at any
+  nesting depth. Select several rows and move, copy or delete them in one go. Cut, Copy,
+  Paste and Duplicate are on the right-click menu and on the usual keys while the view has
+  focus (`F2` renames, `Delete` deletes). A name clash never overwrites: the incoming file
+  is suffixed `-2` instead, and deletions go to the OS trash.
+- **Drop files in** — drag a `.md` or `.txt` in from the Explorer or your desktop and it is
+  copied into the prompt folder, never moved out of wherever it came from.
 - **Hover to preview** — hovering a snippet shows the start of its text, read on demand so
   that building the tree never touches file contents. Long prompts are clipped to 15 lines.
 - **Open in Obsidian** — jump from a snippet to the same file in your vault.
@@ -274,6 +281,12 @@ between them if you need both.
   all — the **Refresh** button in the view title always works.
 - On a remote or WSL window, `workspace.fs` and the default global storage resolve on the
   **remote** host, so the global prompt folder lives remote-side.
+- Dragging inside the tree always **moves**. VS Code gives an extension no way to see
+  whether a modifier key is held during a drag, so there is no Ctrl-drag-to-copy — use Copy
+  and Paste, or Duplicate, instead.
+- The tree's Cut/Copy buffer is separate from the system clipboard and lasts for the
+  window. That is deliberate: the system clipboard already carries snippet *text* for
+  pasting into a chat, and putting file paths there would overwrite it.
 
 ## Requirements
 

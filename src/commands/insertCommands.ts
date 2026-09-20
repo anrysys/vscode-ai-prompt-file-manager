@@ -111,7 +111,7 @@ function sameSelections(
 }
 
 export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
-    const { repo } = deps;
+    const { repo, usage } = deps;
 
     async function insert(ref: SnippetRef): Promise<void> {
         const raw = await repo.readSnippet(ref.uri);
@@ -138,10 +138,14 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
         const target = toInsertTarget(raw, source, selectionsAtTrigger);
         const outcome = await insertSnippetText(text, cfg, target);
         notifyInsert(outcome, ref.label, cfg);
+        // After the insert, never before: this is bookkeeping, and nothing about it may stand
+        // between the user and their prompt. Every outcome counts, `guarded` and `clipboardOnly`
+        // included -- the text reached the clipboard in all of them.
+        await usage.record(ref.uri);
     }
 
     async function insertViaPicker(): Promise<void> {
-        const file = await pickSnippet(repo);
+        const file = await pickSnippet(repo, usage);
         if (file) {
             await insert({ uri: file.uri, label: file.label });
         }
@@ -171,7 +175,7 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
             guard('Could not copy snippet', async (arg?: PromptNode | vscode.Uri) => {
                 let ref = toRef(arg);
                 if (!ref) {
-                    const picked = await pickSnippet(repo);
+                    const picked = await pickSnippet(repo, usage);
                     ref = picked ? { uri: picked.uri, label: picked.label } : undefined;
                 }
                 if (!ref) {
@@ -194,6 +198,7 @@ export function registerInsertCommands(deps: CommandDeps): vscode.Disposable[] {
                     `$(clippy) Copied "${ref.label}" to clipboard`,
                     3000,
                 );
+                await usage.record(ref.uri);
             }),
         ),
 

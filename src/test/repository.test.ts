@@ -155,4 +155,48 @@ suite('SnippetRepository', () => {
         await repo.delete(uri, false);
         assert.strictEqual(await repo.exists(uri), false);
     });
+
+    test('rename refuses a name that would climb out of the folder', async () => {
+        // joinPath normalises '..', so without the guard this would write outside the root.
+        const original = await repo.createSnippet(tempDir, 'ok.md', 'body');
+        await assert.rejects(() => repo.rename(original, '../escaped.md'));
+
+        assert.strictEqual(await repo.exists(original), true, 'the original must survive');
+        const outside = vscode.Uri.joinPath(tempDir, '..', 'escaped.md');
+        assert.strictEqual(await repo.exists(outside), false, 'nothing may land outside');
+    });
+
+    test('a free name for a folder does not split on the dot', async () => {
+        await repo.createFolder(tempDir, 'my.folder');
+        const free = await repo.findFreeUri(tempDir, 'my.folder', { keepExtension: false });
+        assert.strictEqual(path.basename(free.fsPath), 'my.folder-2');
+    });
+
+    test('copy duplicates a directory tree and leaves the source alone', async () => {
+        await write('src/inner/a.md', 'body');
+        const target = vscode.Uri.joinPath(tempDir, 'copy');
+
+        await repo.copy(vscode.Uri.joinPath(tempDir, 'src'), target, { overwrite: false });
+
+        assert.strictEqual(await repo.readSnippet(vscode.Uri.joinPath(target, 'inner', 'a.md')), 'body');
+        assert.strictEqual(await repo.exists(vscode.Uri.joinPath(tempDir, 'src', 'inner', 'a.md')), true);
+    });
+
+    test('move relocates a file and leaves nothing behind', async () => {
+        const source = await write('a.md', 'body');
+        const target = vscode.Uri.joinPath(tempDir, 'moved.md');
+
+        await repo.move(source, target, { overwrite: false });
+
+        assert.strictEqual(await repo.exists(source), false);
+        assert.strictEqual(await repo.readSnippet(target), 'body');
+    });
+
+    test('move onto an existing file is refused rather than silently overwriting', async () => {
+        const source = await write('a.md', 'incoming');
+        const target = await write('b.md', 'existing');
+
+        await assert.rejects(() => repo.move(source, target, { overwrite: false }));
+        assert.strictEqual(await repo.readSnippet(target), 'existing');
+    });
 });

@@ -2,8 +2,10 @@ import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import {
     compareByRelativePath,
+    compareByUsageThenPath,
     dedupeByPath,
     orderRootsForPicker,
+    pickFrequent,
     prepareGroup,
 } from '../ui/snippetOrdering';
 import type { SnippetFile, SnippetRoot } from '../model/snippet';
@@ -107,5 +109,74 @@ suite('prepareGroup', () => {
             group.map((f) => f.name),
             ['a.md', 'b.md'],
         );
+    });
+});
+
+/** Scores by relative path so the fixtures stay readable. */
+function usageOf(counts: Record<string, number>) {
+    return (f: SnippetFile): number => counts[f.relativePath] ?? 0;
+}
+
+suite('compareByUsageThenPath', () => {
+    test('the more used file wins regardless of name', () => {
+        const sorted = [file(globalRoot, 'a.md'), file(globalRoot, 'z.md')].sort(
+            compareByUsageThenPath(usageOf({ 'z.md': 4 })),
+        );
+        assert.deepStrictEqual(sorted.map((f) => f.name), ['z.md', 'a.md']);
+    });
+
+    test('files nobody has used keep the plain alphabetical order', () => {
+        const sorted = [file(globalRoot, 'a10.md'), file(globalRoot, 'a2.md')].sort(
+            compareByUsageThenPath(usageOf({})),
+        );
+        assert.deepStrictEqual(sorted.map((f) => f.name), ['a2.md', 'a10.md']);
+    });
+
+    test('a tie on usage falls back to the path order', () => {
+        const counts = { 'b.md': 3, 'a.md': 3 };
+        const sorted = [file(globalRoot, 'b.md'), file(globalRoot, 'a.md')].sort(
+            compareByUsageThenPath(usageOf(counts)),
+        );
+        assert.deepStrictEqual(sorted.map((f) => f.name), ['a.md', 'b.md']);
+    });
+});
+
+suite('pickFrequent', () => {
+    const files = [
+        file(globalRoot, 'refactor.md'),
+        file(globalRoot, 'explain.md'),
+        file(wsRoot, 'review.md'),
+    ];
+    const counts = usageOf({ 'refactor.md': 47, 'review.md': 12 });
+
+    test('spans roots, most used first', () => {
+        assert.deepStrictEqual(
+            pickFrequent(files, counts, 5).map((f) => f.name),
+            ['refactor.md', 'review.md'],
+        );
+    });
+
+    test('never lists a file nobody has used', () => {
+        assert.strictEqual(
+            pickFrequent(files, counts, 5).some((f) => f.name === 'explain.md'),
+            false,
+        );
+    });
+
+    test('respects the limit', () => {
+        assert.deepStrictEqual(
+            pickFrequent(files, counts, 1).map((f) => f.name),
+            ['refactor.md'],
+        );
+    });
+
+    test('a limit of 0 hides the group', () => {
+        assert.deepStrictEqual(pickFrequent(files, counts, 0), []);
+    });
+
+    test('does not reorder the caller\'s array', () => {
+        const input = [...files];
+        pickFrequent(input, counts, 5);
+        assert.deepStrictEqual(input.map((f) => f.name), files.map((f) => f.name));
     });
 });

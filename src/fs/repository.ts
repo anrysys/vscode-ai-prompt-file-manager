@@ -14,6 +14,9 @@ import { labelFromFileName, uriKey } from './paths';
 
 const BOM = '\uFEFF';
 
+/** Errors that mean the request itself was invalid, rather than the provider failing. */
+const SEMANTIC_FS_CODES = new Set(['FileExists', 'FileNotFound', 'NoPermissions', 'FileIsADirectory', 'FileNotADirectory']);
+
 export class SnippetTooLargeError extends Error {
     constructor(
         readonly uri: vscode.Uri,
@@ -59,6 +62,16 @@ export class SnippetRepository {
         } catch {
             return false;
         }
+    }
+
+    /** Throws FileNotFound when the resource is gone, which callers rely on. */
+    async statOf(uri: vscode.Uri): Promise<vscode.FileStat> {
+        return vscode.workspace.fs.stat(uri);
+    }
+
+    async isDirectory(uri: vscode.Uri): Promise<boolean> {
+        const stat = await this.statOf(uri);
+        return (stat.type & vscode.FileType.Directory) !== 0;
     }
 
     /**
@@ -203,6 +216,31 @@ export class SnippetRepository {
     }
 
     /**
+     * First free name in `dir` for `name`, suffixing `-2`, `-3`... rather than ever
+     * overwriting. Returns the Uri that is safe to write to.
+     *
+     * `keepExtension` is false for directories, where a dot is part of the name rather
+     * than an extension: `my.folder` must become `my.folder-2`, not `my-2.folder`.
+     */
+    async findFreeUri(
+        dir: vscode.Uri,
+        name: string,
+        options: { keepExtension: boolean },
+    ): Promise<vscode.Uri> {
+        const ext = options.keepExtension ? path.extname(name) : '';
+        const stem = ext.length > 0 ? name.slice(0, -ext.length) : name;
+
+        for (let attempt = 1; attempt <= 100; attempt++) {
+            const candidate = attempt === 1 ? name : `${stem}-${attempt}${ext}`;
+            const uri = vscode.Uri.joinPath(dir, candidate);
+            if (!(await this.exists(uri))) {
+                return uri;
+            }
+        }
+        throw new Error(`Could not find a free file name for "${name}" in ${dir.fsPath}.`);
+    }
+
+    /**
      * Creates a snippet, suffixing `-2`, `-3`... rather than ever overwriting an
      * existing file. Returns the Uri actually created.
      */
@@ -212,19 +250,24 @@ export class SnippetRepository {
         initialContent: string,
     ): Promise<vscode.Uri> {
         await this.ensureDirectory(dir);
-        const ext = path.extname(fileName);
-        const stem = ext.length > 0 ? fileName.slice(0, -ext.length) : fileName;
+        const uri = await this.findFreeUri(dir, fileName, { keepExtension: true });
+        await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(initialContent));
+        return uri;
+    }
 
-        for (let attempt = 1; attempt <= 100; attempt++) {
-            const candidate = attempt === 1 ? fileName : `${stem}-${attempt}${ext}`;
-            const uri = vscode.Uri.joinPath(dir, candidate);
-            if (await this.exists(uri)) {
-                continue;
-            }
-            await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(initialContent));
-            return uri;
-        }
-        throw new Error(`Could not find a free file name for "${fileName}" in ${dir.fsPath}.`);
+    /**
+     * Writes bytes under a free name in `dir`. Used for files dropped in from outside,
+     * which may arrive as raw content with no path of their own.
+     */
+    async writeNewFile(
+        dir: vscode.Uri,
+        name: string,
+        bytes: Uint8Array,
+    ): Promise<vscode.Uri> {
+        await this.ensureDirectory(dir);
+        const uri = await this.findFreeUri(dir, name, { keepExtension: true });
+        await vscode.workspace.fs.writeFile(uri, bytes);
+        return uri;
     }
 
     async createFolder(parent: vscode.Uri, name: string): Promise<vscode.Uri> {
@@ -238,8 +281,49 @@ export class SnippetRepository {
 
     async rename(uri: vscode.Uri, newName: string): Promise<vscode.Uri> {
         const target = vscode.Uri.joinPath(uri, '..', newName);
+        // Belt and braces. joinPath normalises '..', so a newName like '../../evil.md'
+        // would land outside the root entirely. The command layer rejects separators
+        // before we get here, but the repository must not depend on its callers.
+        if (path.dirname(target.fsPath) !== path.dirname(uri.fsPath)) {
+            throw new Error(`"${newName}" is not a valid name.`);
+        }
         await vscode.workspace.fs.rename(uri, target, { overwrite: false });
         return target;
+    }
+
+    async copy(
+        source: vscode.Uri,
+        target: vscode.Uri,
+        options: { overwrite: boolean },
+    ): Promise<void> {
+        // Recursive for directories already -- no manual walk needed.
+        await vscode.workspace.fs.copy(source, target, options);
+    }
+
+    /**
+     * Moves a resource, falling back to copy+delete when the provider cannot rename
+     * across devices. The global root routinely lives on a different volume from the
+     * workspace, so a bare rename is not enough.
+     */
+    async move(
+        source: vscode.Uri,
+        target: vscode.Uri,
+        options: { overwrite: boolean },
+    ): Promise<void> {
+        try {
+            await vscode.workspace.fs.rename(source, target, options);
+            return;
+        } catch (err) {
+            // Semantic failures mean the caller asked for something impossible; only a
+            // mechanical failure (a cross-device link, typically) is worth retrying.
+            if (err instanceof vscode.FileSystemError && SEMANTIC_FS_CODES.has(err.code)) {
+                throw err;
+            }
+            await vscode.workspace.fs.copy(source, target, options);
+            // useTrash: false on purpose. The copy already exists, so trashing the
+            // original would leave the user a confusing duplicate to clean up.
+            await vscode.workspace.fs.delete(source, { recursive: true, useTrash: false });
+        }
     }
 
     /** useTrash keeps deletions recoverable from the OS trash. */

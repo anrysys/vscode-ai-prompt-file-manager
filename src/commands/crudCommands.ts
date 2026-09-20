@@ -8,53 +8,20 @@ import {
     snippetFileName,
     stripSnippetExtension,
 } from '../fs/paths';
-import { guard } from '../ui/notify';
-import type { SnippetRoot } from '../model/snippet';
-import { rootOf, targetDirectoryOf, type PromptNode } from '../tree/nodes';
+import { guard, notifyError } from '../ui/notify';
+import type { PromptNode } from '../tree/nodes';
 import type { CommandDeps } from './deps';
+import { resolveSelection, type ResourceNode } from './selection';
+import { resolveTarget, revealUri } from './targets';
 
 export function registerCrudCommands(deps: CommandDeps): vscode.Disposable[] {
-    const { repo, provider, treeView } = deps;
+    const { repo, provider, treeView, usage } = deps;
 
-    /** Resolves the directory a create action should target, asking when there is no node. */
-    async function resolveTarget(
-        node?: PromptNode,
-    ): Promise<{ dir: vscode.Uri; root: SnippetRoot } | undefined> {
-        if (node) {
-            return { dir: targetDirectoryOf(node), root: rootOf(node) };
-        }
-        const roots = repo.getRoots();
-        if (roots.length === 0) {
-            void vscode.window.showWarningMessage(
-                'No prompt folders are configured. Check the promptManager.global.path setting.',
-            );
-            return undefined;
-        }
-        if (roots.length === 1) {
-            const only = roots[0]!;
-            return { dir: only.uri, root: only };
-        }
-        const picked = await vscode.window.showQuickPick(
-            roots.map((root) => ({ label: root.label, description: root.uri.fsPath, root })),
-            { placeHolder: 'Where should this snippet live?' },
-        );
-        return picked ? { dir: picked.root.uri, root: picked.root } : undefined;
-    }
-
-    async function revealAfterCreate(uri: vscode.Uri, open: boolean): Promise<void> {
-        provider.refresh();
-        if (open) {
-            const doc = await vscode.workspace.openTextDocument(uri);
-            await vscode.window.showTextDocument(doc, { preview: false });
-        }
-        const node = await provider.findNodeForUri(uri);
-        if (node) {
-            await treeView.reveal(node, { select: true, focus: false });
-        }
-    }
+    const revealAfterCreate = (uri: vscode.Uri, open: boolean): Promise<void> =>
+        revealUri(provider, treeView, uri, { open });
 
     const createSnippet = guard('Could not create snippet', async (node?: PromptNode) => {
-        const target = await resolveTarget(node);
+        const target = await resolveTarget(repo, node);
         if (!target) {
             return;
         }
@@ -104,7 +71,7 @@ export function registerCrudCommands(deps: CommandDeps): vscode.Disposable[] {
         vscode.commands.registerCommand(
             Cmd.newFolder,
             guard('Could not create folder', async (node?: PromptNode) => {
-                const target = await resolveTarget(node);
+                const target = await resolveTarget(repo, node);
                 if (!target) {
                     return;
                 }
@@ -127,11 +94,18 @@ export function registerCrudCommands(deps: CommandDeps): vscode.Disposable[] {
 
         vscode.commands.registerCommand(
             Cmd.renameSnippet,
-            guard('Could not rename', async (node?: PromptNode) => {
-                if (!node || node.type === 'root') {
+            guard('Could not rename', async (node?: PromptNode, selection?: PromptNode[]) => {
+                const items = resolveSelection(node, selection, treeView);
+                if (items.length === 0) {
                     return;
                 }
-                const current = node.entry.name;
+                if (items.length > 1) {
+                    // Renaming one arbitrary row out of five would be worse than refusing.
+                    void vscode.window.showWarningMessage('Rename one item at a time.');
+                    return;
+                }
+                const item = items[0]!;
+                const current = item.entry.name;
                 const ext = path.extname(current);
                 const options: vscode.InputBoxOptions = {
                     prompt: 'New name',
@@ -150,35 +124,75 @@ export function registerCrudCommands(deps: CommandDeps): vscode.Disposable[] {
                     return;
                 }
                 // workspace.fs.rename retargets any open editor on the file automatically.
-                const renamed = await repo.rename(node.entry.uri, newName.trim());
+                const renamed = await repo.rename(item.entry.uri, newName.trim());
+                // Carried over by hand: usage is keyed by path, so without this a rename would
+                // silently reset the history of the snippet -- or of a whole folder of them.
+                await usage.migrate(item.entry.uri, renamed);
                 await revealAfterCreate(renamed, false);
             }),
         ),
 
         vscode.commands.registerCommand(
             Cmd.deleteSnippet,
-            guard('Could not delete', async (node?: PromptNode) => {
-                if (!node || node.type === 'root') {
+            guard('Could not delete', async (node?: PromptNode, selection?: PromptNode[]) => {
+                const items = resolveSelection(node, selection, treeView);
+                if (items.length === 0) {
                     return;
                 }
-                const isFolder = node.type === 'folder';
-                const detail = isFolder
-                    ? `${node.entry.uri.fsPath}\n\nThe folder and everything inside it will be moved to the trash.`
-                    : `${node.entry.uri.fsPath}\n\nThe file will be moved to the trash.`;
 
-                // modal: true is what makes this block; detail shows the full path so the
+                // modal: true is what makes this block; the detail lists full paths so the
                 // wrong scope's copy cannot be deleted by mistake.
                 const answer = await vscode.window.showWarningMessage(
-                    `Delete "${node.entry.name}"?`,
-                    { modal: true, detail },
+                    items.length === 1
+                        ? `Delete "${items[0]!.entry.name}"?`
+                        : `Delete ${items.length} items?`,
+                    { modal: true, detail: describeDeletion(items) },
                     'Delete',
                 );
                 if (answer !== 'Delete') {
                     return;
                 }
-                await repo.delete(node.entry.uri, isFolder);
+
+                const failures: unknown[] = [];
+                for (const item of items) {
+                    try {
+                        await repo.delete(item.entry.uri, item.type === 'folder');
+                    } catch (err) {
+                        // Per item, so one locked file does not strand the rest.
+                        failures.push(err);
+                    }
+                }
+                // Exactly one refresh for the whole batch, no matter how it went.
                 provider.refresh();
+                if (failures[0] !== undefined) {
+                    notifyError(
+                        failures[0],
+                        failures.length === 1
+                            ? 'Could not delete'
+                            : `Could not delete ${failures.length} items`,
+                    );
+                }
             }),
         ),
     ];
+}
+
+/** Full paths, so the wrong scope's copy cannot be deleted by mistake. */
+function describeDeletion(items: readonly ResourceNode[]): string {
+    const SHOWN = 10;
+    const listed = items.slice(0, SHOWN).map((item) => item.entry.uri.fsPath);
+    const remainder = items.length - listed.length;
+    const paths = remainder > 0 ? [...listed, `…and ${remainder} more`] : listed;
+
+    const anyFolder = items.some((item) => item.type === 'folder');
+    const tail =
+        items.length === 1
+            ? anyFolder
+                ? 'The folder and everything inside it will be moved to the trash.'
+                : 'The file will be moved to the trash.'
+            : anyFolder
+              ? 'These will be moved to the trash, folders with everything inside them.'
+              : 'These will be moved to the trash.';
+
+    return `${paths.join('\n')}\n\n${tail}`;
 }

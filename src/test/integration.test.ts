@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { Cmd, ContextValue, VIEW_ID } from '../constants';
+import { Cmd, ContextKey, ContextValue, VIEW_ID } from '../constants';
 import { SnippetRepository } from '../fs/repository';
 import { PromptTreeProvider } from '../tree/promptTreeProvider';
 import { insertSnippetText } from '../insert/inserter';
@@ -70,6 +70,30 @@ suite('extension wiring', () => {
 
         assert.ok(commands.includes(Cmd.insertFromTree), 'Insert should remain in the context menu');
         assert.ok(commands.includes(Cmd.openSnippet), 'Edit should also be listed by name');
+    });
+
+    test('cut, copy, paste and duplicate are all on the right-click menu', () => {
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
+        const grouped = menus
+            .filter((m: { group?: string }) => m.group?.startsWith('6_cutcopypaste'))
+            .map((m: { command: string }) => m.command);
+
+        assert.deepStrictEqual(
+            [...grouped].sort(),
+            [Cmd.copyResource, Cmd.cutResource, Cmd.duplicateResource, Cmd.pasteResource].sort(),
+            'the file-manager verbs must stay reachable as a group',
+        );
+    });
+
+    test('paste is hidden until there is something on the clipboard', () => {
+        // Without the context key the entry would show and then silently do nothing.
+        const ext = vscode.extensions.getExtension(EXTENSION_ID);
+        const menus = ext?.packageJSON?.contributes?.menus?.['view/item/context'] ?? [];
+        const paste = menus.find(
+            (m: { command: string }) => m.command === Cmd.pasteResource,
+        );
+        assert.ok(paste?.when?.includes(ContextKey.clipboardHasItems), paste?.when);
     });
 
     test('the view id in package.json matches the one the provider registers under', () => {

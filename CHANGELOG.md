@@ -2,6 +2,37 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **The tree view is now a file manager.** Drag snippets and folders onto any folder, at any
+  depth, including between the Global and Workspace scopes. Select several rows and move,
+  copy or delete them in one gesture. **Cut**, **Copy**, **Paste** and **Duplicate** joined
+  the right-click menu, bound to the usual keys while the view has focus, alongside `F2` to
+  rename and `Delete` to delete.
+- **Files can be dragged in from outside.** Dropping a `.md` or `.txt` from the Explorer or
+  the desktop copies it into the prompt folder; the original is never moved. Anything that
+  is not a prompt is skipped with a message rather than landing on disk invisibly.
+- **Snippets can be dragged out** into an editor, which inserts a link to the file.
+
+### Changed
+
+- A name clash on a move, copy or import suffixes the incoming item `-2` rather than
+  overwriting, matching what creating a snippet has always done. Deletions still go to the
+  OS trash, and a multiple delete lists every full path before it asks.
+- Usage counts now follow a snippet through a move, a drag or a paste, as they already did
+  through a rename — including when a clash renamed the file on arrival.
+
+### Fixed
+
+- **Renaming could write outside the prompt folder.** A name containing `..` was normalised
+  into a path that escaped the root. The input box already rejected separators, but the
+  repository now refuses any rename that would change the parent directory, so the guard no
+  longer depends on its caller.
+- Moving a snippet between two different disks no longer fails: the move falls back to a
+  copy and delete when the file system cannot rename across devices.
+
 ## [0.1.13] - 2026-09-15
 
 ### Added
