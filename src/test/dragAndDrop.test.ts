@@ -13,7 +13,7 @@ import {
     splitBySupportedType,
 } from '../tree/dragAndDrop';
 import type { TransferResult } from '../fs/transfer';
-import type { PromptNode } from '../tree/nodes';
+import { RootNode, uriOf, type PromptNode } from '../tree/nodes';
 import type { SnippetRoot } from '../model/snippet';
 
 /**
@@ -157,11 +157,54 @@ suite('PromptDragAndDropController', () => {
         }
     });
 
-    test('a root cannot be dragged', async () => {
+    test('a root is never offered as a move', async () => {
         const roots = await provider.getChildren();
         const transfer = new vscode.DataTransfer();
         controller.handleDrag(roots, transfer);
         assert.strictEqual(transfer.get(TREE_MIME_TYPE), undefined);
+    });
+
+    test('a root is still offered to the editor as a uri-list', async () => {
+        const roots = await provider.getChildren();
+        const transfer = new vscode.DataTransfer();
+        controller.handleDrag(roots, transfer);
+
+        assert.strictEqual(
+            transfer.get(URI_LIST_MIME_TYPE)?.value,
+            uriOf(roots[0]!).toString(),
+        );
+    });
+
+    test('a root that does not exist yet is offered to nobody', () => {
+        // Built directly rather than through a setting: handleDrag touches no disk, so
+        // standing a missing root up on the file system would only slow the suite down.
+        const ghost = new RootNode(
+            syntheticRoot('ghost', vscode.Uri.file(path.join(os.tmpdir(), 'nope'))),
+            true,
+        );
+        const transfer = new vscode.DataTransfer();
+        controller.handleDrag([ghost], transfer);
+
+        assert.strictEqual(transfer.get(TREE_MIME_TYPE), undefined);
+        assert.strictEqual(transfer.get(URI_LIST_MIME_TYPE), undefined);
+    });
+
+    test('a root dragged beside a file moves the file and leaves the root behind', async () => {
+        const uri = await write('a.md', 'body');
+        const root = (await provider.getChildren())[0]!;
+        const transfer = new vscode.DataTransfer();
+        controller.handleDrag([root, await nodeFor(uri)], transfer);
+
+        assert.deepStrictEqual(
+            readTreeUris(transfer).map((u) => u.fsPath),
+            [uri.fsPath],
+            'only the file may be moved',
+        );
+        assert.strictEqual(
+            transfer.get(URI_LIST_MIME_TYPE)?.value,
+            `${uriOf(root).toString()}\r\n${uri.toString()}`,
+            'both are offered to an external target',
+        );
     });
 
     test('dragging a file offers it to the editor as a uri-list', async () => {
@@ -171,6 +214,46 @@ suite('PromptDragAndDropController', () => {
 
         const list = transfer.get(URI_LIST_MIME_TYPE)?.value as string;
         assert.strictEqual(list, uri.toString());
+    });
+
+    test('dragging several prompts offers them as one crlf-joined list', async () => {
+        const first = await write('a.md', '1');
+        const second = await write('folder/b.md', '2');
+        const third = await write('c.md', '3');
+
+        const transfer = new vscode.DataTransfer();
+        controller.handleDrag(
+            [await nodeFor(first), await nodeFor(second), await nodeFor(third)],
+            transfer,
+        );
+
+        // The exact string, not a split-and-compare: \r\n is the part of the uri-list
+        // contract worth pinning, and splitting on /\r?\n/ would pass with a bare \n too.
+        assert.strictEqual(
+            transfer.get(URI_LIST_MIME_TYPE)?.value,
+            `${first.toString()}\r\n${second.toString()}\r\n${third.toString()}`,
+        );
+    });
+
+    test('a root dragged out and dropped back is refused, not moved', async () => {
+        await write('keep/a.md', 'x');
+        const root = (await provider.getChildren())[0]!;
+
+        const transfer = new vscode.DataTransfer();
+        controller.handleDrag([root], transfer);
+        await controller.handleDrop(
+            await nodeFor(vscode.Uri.joinPath(tempDir, 'keep')),
+            transfer,
+            token,
+        );
+
+        assert.strictEqual(results.at(-1)?.rejected[0]?.reason, 'sourceIsRoot');
+        assert.strictEqual(results.at(-1)?.succeeded.length, 0);
+        assert.strictEqual(
+            await exists(vscode.Uri.joinPath(tempDir, 'keep', 'a.md')),
+            true,
+            'the prompts folder must be untouched',
+        );
     });
 
     test('a file dragged onto a folder moves into it', async () => {

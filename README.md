@@ -35,6 +35,11 @@ vault and the same files serve both tools.
   is suffixed `-2` instead, and deletions go to the OS trash.
 - **Drop files in** — drag a `.md` or `.txt` in from the Explorer or your desktop and it is
   copied into the prompt folder, never moved out of wherever it came from.
+- **Drag prompts out** — drag any row into an editor to drop in a link to the file, or several
+  rows for several lines. The Global and Workspace rows come too, so a chat panel that takes
+  file attachments can be handed the whole prompt folder in one gesture. VS Code keeps a
+  tree's drag payload inside its own window, so this reaches editors and panels, not a
+  browser tab or your desktop — use **Copy Path** for those.
 - **Paths and terminals** — **Copy Path** and **Copy Relative Path** put a row's location on
   the system clipboard, one line per selected row; **Open in Integrated Terminal** starts a
   shell in a folder. All three work on files, folders and the scope rows themselves.
@@ -289,6 +294,12 @@ between them if you need both.
 - Dragging inside the tree always **moves**. VS Code gives an extension no way to see
   whether a modifier key is held during a drag, so there is no Ctrl-drag-to-copy — use Copy
   and Paste, or Duplicate, instead.
+- A scope row can be dragged **out** but never moved. Global and Workspace are settings that
+  happen to name a directory, so the tree refuses to move one — including when that folder is
+  dragged back in from the Explorer or your file manager, where it looks like any other
+  folder. Change `promptManager.global.path` or `promptManager.workspace.path` instead.
+  Dropping a scope row onto the **Explorer** hands the path to the Explorer, which has its own
+  idea of what a dropped folder means; the extension has no say in what another view does.
 - The tree's Cut/Copy buffer is separate from the system clipboard and lasts for the
   window. That is deliberate: the system clipboard already carries snippet *text* for
   pasting into a chat, and moving a file around should not overwrite it. **Copy Path** and

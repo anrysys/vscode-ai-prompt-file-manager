@@ -7,7 +7,7 @@ import { transfer, type TransferResult, type UsageMigrator } from '../fs/transfe
 import type { PlacementRejected } from '../fs/boundary';
 import type { SnippetRepository } from '../fs/repository';
 import type { SnippetRoot } from '../model/snippet';
-import { targetDirectoryOf, type PromptNode } from './nodes';
+import { targetDirectoryOf, uriOf, type PromptNode } from './nodes';
 
 /**
  * Drag and drop for the prompt tree.
@@ -33,21 +33,41 @@ export class PromptDragAndDropController implements vscode.TreeDragAndDropContro
     ) {}
 
     handleDrag(source: readonly PromptNode[], dataTransfer: vscode.DataTransfer): void {
-        // A configured root is a setting, not a resource: it cannot be dragged anywhere.
-        const draggable = source.filter(
+        // Two payloads with two different audiences, so two filters rather than one.
+        //
+        // A configured root is a setting, not a resource: it can never be *moved*, so it
+        // stays out of the tree payload, which is the one an internal drop acts on.
+        // Dragging a root beside a file therefore moves the file and leaves the root
+        // alone, which is what the user asked for. boundary.ts refuses it a second time
+        // for the drops that do not come from here at all.
+        const movable = source.filter(
             (node): node is Exclude<PromptNode, { type: 'root' }> => node.type !== 'root',
         );
-        if (draggable.length === 0) {
-            return;
-        }
-        const uris = draggable.map((node) => node.entry.uri.toString());
+        // The uri-list is only ever read, so a root does belong in it: handing a whole
+        // prompts folder to a chat panel is a reasonable thing to want, and Copy Path
+        // already treats a scope row as a real directory for the same reason. A root whose
+        // folder does not exist yet is left out -- it would hand the drop target a path to
+        // nothing, which is the tree's own "not created yet" retold as a broken link.
+        const shareable = source.filter((node) => node.type !== 'root' || !node.missing);
 
-        // Plain strings, not the node objects. DataTransferItem.value is typed `any` and
-        // has to be validated on the way out regardless, and a structural payload keeps
-        // working if the host ever serialises the transfer.
-        dataTransfer.set(TREE_MIME_TYPE, new vscode.DataTransferItem({ uris }));
-        // Lets a prompt be dragged straight into an editor. \r\n is what the API specifies.
-        dataTransfer.set(URI_LIST_MIME_TYPE, new vscode.DataTransferItem(uris.join('\r\n')));
+        if (movable.length > 0) {
+            // Plain strings, not the node objects. DataTransferItem.value is typed `any`
+            // and has to be validated on the way out regardless, and a structural payload
+            // keeps working if the host ever serialises the transfer.
+            const uris = movable.map((node) => node.entry.uri.toString());
+            dataTransfer.set(TREE_MIME_TYPE, new vscode.DataTransferItem({ uris }));
+        }
+        if (shareable.length > 0) {
+            // Lets a prompt, or a whole scope folder, be dragged straight into an editor.
+            // \r\n is what the API specifies. Selection order is preserved on purpose: a
+            // multi-row drag should paste its lines in the order the tree shows them.
+            dataTransfer.set(
+                URI_LIST_MIME_TYPE,
+                new vscode.DataTransferItem(
+                    shareable.map((node) => uriOf(node).toString()).join('\r\n'),
+                ),
+            );
+        }
     }
 
     async handleDrop(

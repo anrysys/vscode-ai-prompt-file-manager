@@ -118,6 +118,38 @@ suite('planPlacement', () => {
         assert.strictEqual(placement.crossRoot, true);
         assert.strictEqual(placement.targetRoot.id, 'global');
     });
+
+    test('refuses to move a configured root into another root', () => {
+        // A root counts as being inside itself, so without an explicit rule this reads as
+        // an ordinary move between scopes and relocates the whole configured directory,
+        // leaving the setting pointing at the empty place it used to be.
+        assert.strictEqual(
+            rejectionOf(globalRoot.uri, at(workspaceRoot, 'folder')),
+            'sourceIsRoot',
+        );
+    });
+
+    test('refuses to copy one too, because a root is not an item', () => {
+        // Deliberately not restricted to 'move': copying a root duplicates every prompt in
+        // it into the other scope, which is its own mess to undo. The rule is about what
+        // the source *is*, not about what is being done to it.
+        assert.strictEqual(
+            rejectionOf(globalRoot.uri, at(workspaceRoot, 'folder'), 'copy'),
+            'sourceIsRoot',
+        );
+    });
+
+    test('a folder sitting at the top of a root is still movable', () => {
+        // The guard must compare the source with the root itself, not with its parent --
+        // an over-broad check would take every top-level folder down with it.
+        const placement = planPlacement(
+            at(globalRoot, 'refactor'),
+            workspaceRoot.uri,
+            roots,
+            'move',
+        );
+        assert.ok(placement.ok);
+    });
 });
 
 suite('pruneNested', () => {

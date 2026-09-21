@@ -2,6 +2,26 @@
 
 All notable changes to the AI Prompt File Manager extension are documented in this file.
 
+## [0.4.0] - 2026-09-21
+
+### Added
+
+- **The scope rows can be dragged out.** Dragging Global Prompts or Workspace Prompts into an
+  editor drops in the folder's path, so a chat panel that takes file attachments can be handed
+  the whole prompt library in one gesture. They still cannot be dragged *anywhere*: a scope is
+  a setting that names a directory, so the tree will not move it. A scope whose folder has not
+  been created yet is not offered at all, rather than handing out a path to nothing.
+- Dragging several rows out at once now has a test pinning the exact payload, so a multi-row
+  drag is guaranteed to arrive as one line per row.
+
+### Fixed
+
+- **Dragging a prompts folder onto the other scope moved it.** The folder a scope points at
+  counts as being inside itself, so dropping it in from the Explorer — or from Finder or your
+  file manager — was read as an ordinary move between scopes and relocated the entire
+  directory, while the setting went on pointing at the empty place it used to be. Every move,
+  copy and import now refuses a source that is a configured prompts folder, and says why.
+
 ## [0.3.0] - 2026-09-20
 
 ### Added

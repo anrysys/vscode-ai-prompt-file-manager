@@ -22,6 +22,7 @@ export type TransferOperation = 'move' | 'copy' | 'import';
 export type PlacementRejection =
     | 'targetOutsideRoots'
     | 'sourceOutsideRoots'
+    | 'sourceIsRoot'
     | 'escapesRoot'
     | 'intoDescendant'
     | 'alreadyThere'
@@ -89,6 +90,29 @@ export function planPlacement(
             source,
             'sourceOutsideRoots',
             `"${name}" is not inside a configured prompts folder.`,
+        );
+    }
+
+    // A root is a setting that happens to name a directory, not an item living in one.
+    // Moving one leaves promptManager.global.path / workspace.path pointing at a folder
+    // that is no longer there, and the only symptom is a scope row quietly reading "not
+    // created yet" -- so it is refused with a reason rather than reported as a success.
+    //
+    // Reachable from outside this extension: findRootFor treats a root as being inside
+    // itself, so a prompts folder dragged in from the Explorer or from the OS file manager
+    // arrives looking exactly like an ordinary cross-scope move.
+    //
+    // Deliberately not restricted to 'move'. Copying a root duplicates every prompt in it
+    // into the other scope, splitting the usage history and leaving a recursive delete as
+    // the way back; the rule is about what the source *is*, not what is being done to it.
+    //
+    // Before the name and descendant checks on purpose: "that is your prompts folder" is
+    // the reason the user needs, and it holds whichever of the later rules would also fire.
+    if (sourceRoot && isSameUri(source, sourceRoot.uri)) {
+        return reject(
+            source,
+            'sourceIsRoot',
+            `"${name}" is a configured prompts folder — point the setting somewhere else instead of moving it.`,
         );
     }
 
